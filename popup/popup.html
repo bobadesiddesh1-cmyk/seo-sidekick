@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SEO Sidekick</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="10.5" cy="10.5" r="6.5"></circle>
+          <line x1="20" y1="20" x2="15.5" y2="15.5"></line>
+        </svg>
+      </span>
+      <div class="brand-text">
+        <strong>SEO Sidekick</strong>
+        <small>Free · no account · no data collected</small>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="SEO tools">
+    <button class="tab" data-tab="links" role="tab" aria-selected="true" title="Broken Link Checker">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"></path></svg>
+      </span>
+      <span class="tab-label">Links</span>
+    </button>
+    <button class="tab" data-tab="hreflang" role="tab" aria-selected="false" title="Hreflang Validator">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>
+      </span>
+      <span class="tab-label">Hreflang</span>
+    </button>
+    <button class="tab" data-tab="highlight" role="tab" aria-selected="false" title="Dofollow / Nofollow Highlighter">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 9.5-9.5a2 2 0 0 0 0-3l-.5-.5a2 2 0 0 0-3 0L4.5 15.5 4 20z"></path></svg>
+      </span>
+      <span class="tab-label">Highlight</span>
+    </button>
+    <button class="tab" data-tab="location" role="tab" aria-selected="false" title="SERP Location Changer">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.2-6-10a6 6 0 0 1 12 0c0 4.8-6 10-6 10z"></path><circle cx="12" cy="11" r="2.2"></circle></svg>
+      </span>
+      <span class="tab-label">Location</span>
+    </button>
+    <button class="tab" data-tab="preview" role="tab" aria-selected="false" title="SERP Snippet Preview">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9h10M7 13h7"></path></svg>
+      </span>
+      <span class="tab-label">Preview</span>
+    </button>
+  </nav>
+
+  <main class="panels">
+    <!-- Module 1: Links -->
+    <section class="panel is-active" data-panel="links">
+      <div class="panel-head">
+        <h2>Broken Link Checker</h2>
+        <p class="muted">Scans up to 300 links on this page. HEAD-first, 6 at a time, 8s timeout.</p>
+      </div>
+      <div class="row">
+        <button id="links-scan" class="btn btn-primary">Scan this page for broken links</button>
+        <button id="links-export" class="btn btn-ghost" disabled>Export CSV</button>
+      </div>
+      <div id="links-status" class="status" role="status"></div>
+      <div id="links-summary" class="summary hidden"></div>
+      <div id="links-results" class="results"></div>
+    </section>
+
+    <!-- Module 2: Hreflang -->
+    <section class="panel" data-panel="hreflang">
+      <div class="panel-head">
+        <h2>Hreflang Validator</h2>
+        <p class="muted">Language codes, self-reference, duplicates & return-tag reciprocity.</p>
+      </div>
+      <div class="row">
+        <button id="hreflang-rescan" class="btn btn-ghost">Re-run check</button>
+      </div>
+      <div id="hreflang-status" class="status" role="status"></div>
+      <div id="hreflang-page" class="summary hidden"></div>
+      <div id="hreflang-results" class="results"></div>
+    </section>
+
+    <!-- Module 3: Highlight -->
+    <section class="panel" data-panel="highlight">
+      <div class="panel-head">
+        <h2>Dofollow / Nofollow Highlighter</h2>
+        <p class="muted">Outlines every link: color = follow status, style = internal/external.</p>
+      </div>
+      <div class="row toggle-row">
+        <label class="switch">
+          <input type="checkbox" id="highlight-toggle">
+          <span class="slider"></span>
+        </label>
+        <span id="highlight-toggle-label">Highlight links on this page</span>
+      </div>
+      <div id="highlight-status" class="status" role="status"></div>
+      <div id="highlight-counts" class="counts-grid hidden"></div>
+      <div class="legend-static">
+        <div class="lg-row"><span class="sw g-solid"></span> Internal · dofollow</div>
+        <div class="lg-row"><span class="sw g-dash"></span> External · dofollow</div>
+        <div class="lg-row"><span class="sw r-solid"></span> Internal · nofollow</div>
+        <div class="lg-row"><span class="sw r-dash"></span> External · nofollow</div>
+      </div>
+    </section>
+
+    <!-- Module 4: Location -->
+    <section class="panel" data-panel="location">
+      <div class="panel-head">
+        <h2>SERP Location Changer</h2>
+        <p class="muted">Search Google as if you were somewhere else (uule + gl/hl).</p>
+      </div>
+      <label class="field-label" for="location-select">Location</label>
+      <select id="location-select" class="input"></select>
+
+      <label class="field-label" for="location-custom">Or type a custom location</label>
+      <input id="location-custom" class="input" type="text" placeholder="e.g. Austin, Texas, United States">
+
+      <label class="field-label" for="location-query">Query</label>
+      <input id="location-query" class="input" type="text" placeholder="Search term…">
+
+      <div class="row">
+        <button id="location-search" class="btn btn-primary">Search as location</button>
+      </div>
+      <div id="location-status" class="status" role="status"></div>
+
+      <div class="panel-head" style="margin-top:14px;">
+        <h3>Recent searches</h3>
+      </div>
+      <div id="location-history" class="results"></div>
+    </section>
+
+    <!-- Module 5: Preview -->
+    <section class="panel" data-panel="preview">
+      <div class="panel-head">
+        <h2>SERP Snippet Preview</h2>
+        <p class="muted">Pixel-accurate title/description widths with truncation points.</p>
+      </div>
+
+      <label class="field-label" for="preview-title">Title <span id="preview-title-meta" class="meta-inline"></span></label>
+      <textarea id="preview-title" class="input textarea" rows="2" placeholder="Page title…"></textarea>
+      <div class="bar"><div id="preview-title-bar" class="bar-fill"></div><span id="preview-title-mark" class="bar-mark"></span></div>
+
+      <label class="field-label" for="preview-desc">Meta description <span id="preview-desc-meta" class="meta-inline"></span></label>
+      <textarea id="preview-desc" class="input textarea" rows="3" placeholder="Meta description…"></textarea>
+      <div class="bar"><div id="preview-desc-bar" class="bar-fill"></div><span id="preview-desc-mark" class="bar-mark"></span></div>
+
+      <div class="row">
+        <button id="preview-copy-title" class="btn btn-ghost">Copy title</button>
+        <button id="preview-copy-desc" class="btn btn-ghost">Copy meta</button>
+      </div>
+
+      <div class="preview-head"><h3>Preview</h3></div>
+      <div id="preview-mount" class="serp-mount"></div>
+      <p class="muted tiny">Font is an Arial-based approximation of Google's SERP rendering — see README.</p>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span>No analytics · no telemetry · everything runs on your device.</span>
+  </footer>
+
+  <!-- shared libs -->
+  <script src="../shared/storage.js"></script>
+  <script src="../shared/csv.js"></script>
+  <script src="../shared/iso-languages.js"></script>
+  <script src="../shared/locations.js"></script>
+  <script src="../shared/pixel-measure.js"></script>
+  <!-- tab modules -->
+  <script src="tabs/links.js"></script>
+  <script src="tabs/hreflang.js"></script>
+  <script src="tabs/highlight.js"></script>
+  <script src="tabs/location.js"></script>
+  <script src="tabs/preview.js"></script>
+  <!-- router -->
+  <script src="popup.js"></script>
+</body>
+</html>
