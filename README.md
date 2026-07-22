@@ -1,8 +1,9 @@
 # SEO Sidekick — Free On-Page & SERP Toolkit
 
-The free **SEO Minion replacement**. Five daily SEO checks in one toolbar icon:
-broken links, hreflang validation, dofollow/nofollow highlighting, SERP location
-spoofing, and live pixel-width title/meta preview.
+The free **SEO Minion replacement**. Six daily SEO checks in one toolbar icon:
+broken links, on-page element analysis with word count, hreflang validation,
+dofollow/nofollow highlighting, SERP location spoofing, and live pixel-width
+title/meta preview.
 
 **Zero account · zero paywall · zero data collected.** Everything runs on your
 device. The only network requests the extension ever makes are the link/hreflang
@@ -23,9 +24,9 @@ No build step. No npm. No bundler. It loads exactly as-is.
 
 ---
 
-## The five modules
+## The six modules
 
-Open the popup and switch between five tabs. Tab switching is instant — results
+Open the popup and switch between six tabs. Tab switching is instant — results
 are cached in memory for the life of the popup session and never re-fetched on
 switch.
 
@@ -47,6 +48,32 @@ DOM order (truncation is noted in the UI), and checks each one:
 - Results table sorts broken-first, shows status, anchor (truncated to 60 chars),
   URL, and internal/external type. **Click any row** to open the URL in a new tab.
   **Export CSV** writes every checked link (RFC-4180 quoted, UTF-8 BOM for Excel).
+
+### 6 · On-Page — On-Page Elements Analyzer
+Runs **automatically** when you open the popup. Reads the current page's on-page
+SEO elements directly from the DOM and reports them at a glance:
+
+- **Word count** — the headline figure is the count of words inside the page's
+  `<body>` **`<p>` (paragraph) tags only**, so navigation, menus, sidebars,
+  scripts, and boilerplate don't inflate it. Hidden paragraphs (`display:none` /
+  `visibility:hidden`) are skipped. Secondary references are also shown: number of
+  paragraphs, heading words, estimated reading time (~200 wpm), and an "all body
+  text" count (the whole `<body>` minus `script`/`style`/`noscript`/`template`/
+  `svg`/`iframe`). Tokenization uses Unicode letter/number matching, so accented
+  and non-Latin scripts count correctly and contractions/hyphenated terms count
+  as a single word.
+- **Title** and **meta description** with character lengths (color-coded against
+  common length guidance).
+- **Headings** — H1–H6 counts in a grid, with the H1/H2 text listed and a warning
+  if there isn't exactly one H1.
+- **Images** — total, with-alt, missing `alt` attribute, and empty `alt`.
+- **Links** — total, internal, external, nofollow.
+- **Indexability** — canonical (with a self-match indicator), meta robots
+  (flags `noindex`), viewport, `lang`, and charset.
+- **Social tags** — `og:title` / `og:description` / `og:image` and
+  `twitter:card` presence.
+- **Structured data** — number of JSON-LD blocks and the `@type`s detected.
+- **Export CSV** writes every metric for the page.
 
 ### 2 · Hreflang — Hreflang Validator
 Runs **automatically** when you open the popup (no button). It reads the current
@@ -173,7 +200,11 @@ persistent content script runs on Google search result pages, purely for the
 6. **Module 5.** Type a long title → the pixel bar goes amber then red at the
    correct truncation point, the mock card updates live and truncates with `…`,
    and the copy buttons work.
-7. **Tabs.** All five tabs switch instantly with no re-scan.
+7. **Module 6.** Open the popup on a content page → the On-Page tab shows a word
+   count driven by the page's `<p>` text (nav/menu/script text excluded), correct
+   H1–H6 counts, image alt stats, canonical/robots, and JSON-LD types; CSV export
+   downloads every metric.
+8. **Tabs.** All six tabs switch instantly with no re-scan.
 
 ---
 
@@ -190,10 +221,11 @@ seo-sidekick/
 ├── inject/
 │   ├── link-checker.js           Module 1 — self-contained injected function
 │   ├── hreflang-checker.js       Module 2 — self-contained injected function
+│   ├── onpage-analyzer.js        Module 6 — on-page elements + word count
 │   └── snippet-reader.js         Module 5 — reads title/meta from active tab
 ├── popup/
 │   ├── popup.html / popup.css / popup.js   5-tab shell + router
-│   └── tabs/                     links.js, hreflang.js, highlight.js, location.js, preview.js
+│   └── tabs/                     links.js, onpage.js, hreflang.js, highlight.js, location.js, preview.js
 ├── shared/
 │   ├── storage.js                chrome.storage.local promise wrapper + history
 │   ├── csv.js                    RFC-4180 CSV builder + download

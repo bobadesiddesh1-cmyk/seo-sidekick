@@ -29,6 +29,12 @@
       </span>
       <span class="tab-label">Links</span>
     </button>
+    <button class="tab" data-tab="onpage" role="tab" aria-selected="false" title="On-Page Elements Analyzer">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M8 13h8M8 17h5"></path></svg>
+      </span>
+      <span class="tab-label">On-Page</span>
+    </button>
     <button class="tab" data-tab="hreflang" role="tab" aria-selected="false" title="Hreflang Validator">
       <span class="tab-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>
@@ -69,6 +75,20 @@
       <div id="links-status" class="status" role="status"></div>
       <div id="links-summary" class="summary hidden"></div>
       <div id="links-results" class="results"></div>
+    </section>
+
+    <!-- Module 6: On-Page Analyzer -->
+    <section class="panel" data-panel="onpage">
+      <div class="panel-head">
+        <h2>On-Page Elements Analyzer</h2>
+        <p class="muted">Title, meta, headings, images, links, schema & a body/&lt;p&gt;-based word count.</p>
+      </div>
+      <div class="row">
+        <button id="onpage-rescan" class="btn btn-ghost">Re-analyze</button>
+        <button id="onpage-export" class="btn btn-ghost" disabled>Export CSV</button>
+      </div>
+      <div id="onpage-status" class="status" role="status"></div>
+      <div id="onpage-results" class="results"></div>
     </section>
 
     <!-- Module 2: Hreflang -->
@@ -172,6 +192,7 @@
   <script src="../shared/pixel-measure.js"></script>
   <!-- tab modules -->
   <script src="tabs/links.js"></script>
+  <script src="tabs/onpage.js"></script>
   <script src="tabs/hreflang.js"></script>
   <script src="tabs/highlight.js"></script>
   <script src="tabs/location.js"></script>

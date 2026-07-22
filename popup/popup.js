@@ -105,10 +105,10 @@
     wireTabs();
     await loadActiveTab();
 
-    // Initialize the default (links) tab, and eagerly init the two auto-run
-    // tabs (hreflang + preview) so they populate before the user clicks them.
+    // Initialize the default (links) tab, and eagerly init the auto-run tabs
+    // (on-page + hreflang + preview) so they populate before the user clicks.
     activate('links');
-    ['hreflang', 'preview'].forEach(function (n) {
+    ['onpage', 'hreflang', 'preview'].forEach(function (n) {
       var mod = TABS[n];
       if (mod && !initialized[n] && typeof mod.init === 'function') {
         initialized[n] = true;

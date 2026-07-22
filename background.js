@@ -14,6 +14,7 @@
  *   'scan-links'      -> Module 1  (inject/link-checker.js)
  *   'check-hreflang'  -> Module 2  (inject/hreflang-checker.js)
  *   'read-snippet'    -> Module 5  (inject/snippet-reader.js)
+ *   'analyze-onpage'  -> Module 6  (inject/onpage-analyzer.js)
  *   'highlight'       -> Module 3  (content/highlighter.js) action: on|off|toggle|counts|state
  */
 'use strict';
@@ -22,6 +23,7 @@
 function callLinkChecker() { return self.__SEO_runLinkChecker(); }
 function callHreflangChecker() { return self.__SEO_runHreflangChecker(); }
 function callSnippetReader() { return self.__SEO_readSnippet(); }
+function callOnpageAnalyzer() { return self.__SEO_runOnpageAnalyzer(); }
 function callHighlightEnable() { return self.__SEO_highlighter.enable(); }
 function callHighlightDisable() { return self.__SEO_highlighter.disable(); }
 function callHighlightToggle() { return self.__SEO_highlighter.toggle(); }
@@ -88,6 +90,12 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
           await injectFile(tab.id, 'inject/snippet-reader.js');
           var snip = await callInPage(tab.id, callSnippetReader);
           sendResponse({ ok: true, data: snip });
+          return;
+        }
+        case 'analyze-onpage': {
+          await injectFile(tab.id, 'inject/onpage-analyzer.js');
+          var onpage = await callInPage(tab.id, callOnpageAnalyzer);
+          sendResponse({ ok: true, data: onpage });
           return;
         }
         case 'highlight': {

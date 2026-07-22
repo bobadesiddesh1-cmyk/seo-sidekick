@@ -80,6 +80,25 @@ the default chosen is recorded here with a one-line rationale.
 - **Truncation thresholds:** title ≈ 580px desktop, description ≈ 920px desktop /
   ≈ 680px mobile shown as both. Amber band starts at 90% of the limit.
 
+## Module 6 — On-Page Elements Analyzer
+
+- **Word count is `<p>`-first by design.** The headline number counts words inside
+  the `<body>`'s visible `<p>` paragraph tags only, because that best approximates
+  the page's actual editorial content and excludes navigation, menus, sidebars,
+  scripts and boilerplate — matching how SEO tools report "content words". Hidden
+  paragraphs (`display:none` / `visibility:hidden` / `opacity:0`) are skipped. A
+  secondary "all body text" count (body minus `script`/`style`/`noscript`/
+  `template`/`svg`/`iframe`, computed on a detached clone so the live DOM is never
+  mutated) is shown for reference, along with heading-word count and reading time.
+- **Tokenizer uses Unicode property escapes** (`\p{L}`/`\p{N}` with the `u` flag)
+  so accented and non-Latin scripts count correctly; internal apostrophes and
+  hyphens keep contractions and hyphenated compounds as single words. An ASCII-ish
+  fallback regex covers the rare engine without Unicode escapes.
+- **Reads the DOM, no fetch.** Everything (title, meta, canonical, robots,
+  headings, images/alt, links, OG/Twitter, JSON-LD `@type`s) is read from the
+  live document — no network requests. Runs as a self-contained injected function
+  like Modules 1/2/5, invoked from `background.js`.
+
 ## Icons
 
 - **Generated as flat PNGs** with a magnifying-glass-on-teal mark via a tiny
