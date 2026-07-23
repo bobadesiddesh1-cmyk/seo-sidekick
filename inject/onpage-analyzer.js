@@ -153,20 +153,115 @@
       }
     }
 
-    // ---- WORD COUNT (body + <p> focused) -----------------------------------
-    // Primary: words inside visible <p> paragraph tags in the body.
-    var paragraphEls = qa('body p');
+    // ---- WORD COUNT (MAIN CONTENT only) ------------------------------------
+    // Goal: count the article/body copy, NOT the whole page (nav, header,
+    // footer, sidebars, cookie banners, related-posts, etc.). Two steps:
+    //   1) Pick a content root: <main>/[role=main]/<article> if present, else
+    //      the block that holds the most paragraph text (a light Readability-
+    //      style density pick), else <body>.
+    //   2) Within that root, count words from visible <p> paragraphs whose
+    //      ancestors are NOT boilerplate (nav/header/footer/aside/role/negative
+    //      class or id patterns).
+
+    // Elements/roles that are always boilerplate.
+    var BOILER_TAGS = { nav: 1, header: 1, footer: 1, aside: 1, form: 1 };
+    var BOILER_ROLES = {
+      navigation: 1, banner: 1, contentinfo: 1, complementary: 1, search: 1,
+      menu: 1, menubar: 1, dialog: 1, tablist: 1
+    };
+    // Negative class/id substrings (boilerplate) and positive ones (content).
+    var NEG_RE = /(^|[-_\s])(nav|menu|sidebar|side-bar|footer|header|masthead|breadcrumb|pagination|pager|comment|disqus|cookie|consent|gdpr|banner|promo|advert|adsense|widget|share|social|related|recommend|subscribe|newsletter|signup|modal|popup|overlay|lightbox|toolbar|topbar|utility|skip|screen-reader|visually-hidden|sr-only|offcanvas|drawer|search|login|signin|account|cart|wishlist|tag-cloud|byline|author-box|copyright|legal|disclaimer|back-to-top|meta-|-meta|hero-nav|site-)([-_\s]|$)/i;
+    var POS_RE = /(^|[-_\s])(article|articlebody|post|entry|content|main|story|blog|prose|body-copy|rich-text|markdown|page-content|entry-content|post-content|article-content|c-content)([-_\s]|$)/i;
+
+    function elClassId(el) {
+      var c = '';
+      try { c = (el.getAttribute('class') || '') + ' ' + (el.getAttribute('id') || ''); }
+      catch (e) { c = ''; }
+      return c;
+    }
+    function isBoilerplate(el) {
+      if (!el || el.nodeType !== 1) return false;
+      var tag = (el.tagName || '').toLowerCase();
+      if (BOILER_TAGS[tag]) return true;
+      var role = '';
+      try { role = (el.getAttribute('role') || '').toLowerCase(); } catch (e) {}
+      if (role && BOILER_ROLES[role]) return true;
+      var ci = elClassId(el);
+      if (ci && NEG_RE.test(ci) && !POS_RE.test(ci)) return true;
+      return false;
+    }
+    // Is el, or any ancestor up to (and excluding) stopAt, boilerplate?
+    function inBoilerplate(el, stopAt) {
+      var node = el;
+      while (node && node !== stopAt && node.nodeType === 1) {
+        if (isBoilerplate(node)) return true;
+        node = node.parentElement;
+      }
+      return false;
+    }
+
+    // Step 1: choose the content root.
+    var contentRoot = null;
+    var contentRootLabel = '';
+    try {
+      contentRoot = document.querySelector('main') ||
+        document.querySelector('[role="main"]');
+      if (contentRoot) contentRootLabel = contentRoot.tagName.toLowerCase() === 'main' ? '<main>' : '[role=main]';
+    } catch (e) { contentRoot = null; }
+
+    if (!contentRoot) {
+      // Pick the <article> (or any block) whose paragraphs hold the most text.
+      var bestEl = null, bestScore = 0;
+      try {
+        var candidates = qa('article, [role="article"], section, div');
+        // Limit work on huge pages.
+        var scanned = 0;
+        for (var ci2 = 0; ci2 < candidates.length && scanned < 1200; ci2++) {
+          var cand = candidates[ci2];
+          if (isBoilerplate(cand)) continue;
+          var ps = cand.getElementsByTagName('p');
+          if (!ps.length) continue;
+          scanned++;
+          var score = 0, deep = 0;
+          for (var pi = 0; pi < ps.length; pi++) {
+            var pp = ps[pi];
+            if (inBoilerplate(pp, cand)) continue;
+            var tt = (pp.textContent || '').trim();
+            if (tt.length < 20) continue; // ignore tiny UI paragraphs
+            score += tt.length;
+            deep++;
+          }
+          // Prefer containers with real prose; a small nudge for <article>.
+          if (cand.tagName.toLowerCase() === 'article') score = score * 1.15;
+          if (deep >= 1 && score > bestScore) { bestScore = score; bestEl = cand; }
+        }
+      } catch (e) { bestEl = null; }
+      if (bestEl) {
+        contentRoot = bestEl;
+        contentRootLabel = bestEl.tagName.toLowerCase() === 'article'
+          ? '<article>' : 'main content block (detected)';
+      }
+    }
+    if (!contentRoot) { contentRoot = document.body; contentRootLabel = '<body> (no main region found)'; }
+
+    // Step 2: count words in content paragraphs within the root.
     var paragraphCount = 0;
     var paragraphWords = 0;
-    paragraphEls.forEach(function (p) {
-      if (!visible(p)) return;
-      var t = text(p);
-      if (!t) return;
-      paragraphCount++;
-      paragraphWords += countWords(t);
-    });
+    try {
+      var rootPs = contentRoot ? contentRoot.getElementsByTagName('p') : [];
+      for (var ri = 0; ri < rootPs.length; ri++) {
+        var p = rootPs[ri];
+        if (!visible(p)) continue;
+        if (inBoilerplate(p, contentRoot)) continue;
+        var t = text(p);
+        if (!t) continue;
+        paragraphCount++;
+        paragraphWords += countWords(t);
+      }
+    } catch (e) { /* leave zeros */ }
 
-    // Secondary reference: all body text minus non-content nodes.
+    // Secondary reference: ALL body text minus non-content nodes (the "whole
+    // page" figure, shown small so the difference from main content is clear).
     var bodyWords = 0;
     try {
       var body = document.body;
@@ -181,7 +276,7 @@
       }
     } catch (e) { bodyWords = 0; }
 
-    // Reading time from paragraph content at ~200 wpm (rounded up, min 1).
+    // Reading time from main-content words at ~200 wpm (rounded up, min 1).
     var readingMin = Math.max(1, Math.ceil((paragraphWords || 0) / 200));
 
     return {
@@ -203,11 +298,12 @@
       twitter: twitter,
       jsonLd: { count: jsonLdTypes.length, types: jsonLdTypes },
       wordCount: {
-        paragraphs: paragraphWords,        // PRIMARY — words in <p> body tags
+        paragraphs: paragraphWords,        // PRIMARY — main-content <p> words
         paragraphElements: paragraphCount, // number of counted <p> elements
         headings: headingWordTotal,
-        bodyText: bodyWords,               // secondary reference
-        readingTimeMin: readingMin
+        bodyText: bodyWords,               // secondary — whole page (all body text)
+        readingTimeMin: readingMin,
+        contentRoot: contentRootLabel      // where the main content was found
       }
     };
 

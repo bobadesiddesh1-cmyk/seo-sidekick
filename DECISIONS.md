@@ -88,14 +88,20 @@ the default chosen is recorded here with a one-line rationale.
 
 ## Module 6 — On-Page Elements Analyzer
 
-- **Word count is `<p>`-first by design.** The headline number counts words inside
-  the `<body>`'s visible `<p>` paragraph tags only, because that best approximates
-  the page's actual editorial content and excludes navigation, menus, sidebars,
-  scripts and boilerplate — matching how SEO tools report "content words". Hidden
-  paragraphs (`display:none` / `visibility:hidden` / `opacity:0`) are skipped. A
-  secondary "all body text" count (body minus `script`/`style`/`noscript`/
-  `template`/`svg`/`iframe`, computed on a detached clone so the live DOM is never
-  mutated) is shown for reference, along with heading-word count and reading time.
+- **Word count = main content, not the whole page.** The first version counted
+  every `<p>` in `<body>`, which still swept in nav/header/footer/sidebar
+  paragraphs and inflated the number. It now runs a two-step main-content
+  extraction: (1) pick a content root — `<main>`, `[role=main]`, or `<article>`;
+  if none exists, score candidate blocks by how much paragraph text they hold
+  (a light Readability-style density pick) and take the winner; else fall back to
+  `<body>`. (2) Count visible `<p>` words within that root, excluding boilerplate
+  — the tags `nav/header/footer/aside/form`, ARIA landmark roles, and elements
+  whose class/id match a negative pattern (nav, menu, sidebar, footer, header,
+  breadcrumb, comment, cookie/consent, share/social, related, newsletter, etc.)
+  unless they also match a positive content pattern (article/post/content/entry/
+  main/story/…). Hidden paragraphs are skipped. The detected region is surfaced in
+  the UI, and a secondary "whole page" count (body minus script/style/etc., on a
+  detached clone so the live DOM is never mutated) is shown for contrast.
 - **Tokenizer uses Unicode property escapes** (`\p{L}`/`\p{N}` with the `u` flag)
   so accented and non-Latin scripts count correctly; internal apostrophes and
   hyphens keep contractions and hyphenated compounds as single words. An ASCII-ish

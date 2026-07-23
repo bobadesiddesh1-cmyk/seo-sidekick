@@ -264,6 +264,7 @@ body { min-height: 320px; }
 .op-wc-lbl { font-size: 12px; color: var(--fg-soft); }
 .op-wc-sub { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 11px; color: var(--fg-soft); }
 .op-wc-sub b { color: var(--fg); }
+.op-wc-note { margin-top: 7px; font-size: 10px; color: var(--fg-soft); opacity: .85; }
 
 .op-section { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; background: var(--bg-elev); }
 .op-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--fg-soft); margin-bottom: 6px; }
