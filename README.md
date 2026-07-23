@@ -55,15 +55,20 @@ DOM order (truncation is noted in the UI), and checks each one:
 Runs **automatically** when you open the popup. Reads the current page's on-page
 SEO elements directly from the DOM and reports them at a glance:
 
-- **Word count** — the headline figure is the count of words inside the page's
-  `<body>` **`<p>` (paragraph) tags only**, so navigation, menus, sidebars,
-  scripts, and boilerplate don't inflate it. Hidden paragraphs (`display:none` /
-  `visibility:hidden`) are skipped. Secondary references are also shown: number of
-  paragraphs, heading words, estimated reading time (~200 wpm), and an "all body
-  text" count (the whole `<body>` minus `script`/`style`/`noscript`/`template`/
-  `svg`/`iframe`). Tokenization uses Unicode letter/number matching, so accented
-  and non-Latin scripts count correctly and contractions/hyphenated terms count
-  as a single word.
+- **Word count (main content only)** — the headline figure counts the words in
+  the page's **main content region**, not the whole page. It first looks for a
+  real content root — `<main>`, `[role="main"]`, or `<article>` — and if none
+  exists, it picks the block that holds the most paragraph text (a light
+  Readability-style density heuristic). Within that root it counts visible `<p>`
+  paragraph text while **excluding boilerplate**: `<nav>`, `<header>`, `<footer>`,
+  `<aside>`, `<form>`, ARIA landmark roles (navigation/banner/contentinfo/…), and
+  elements whose class/id look like nav, menu, sidebar, footer, header,
+  breadcrumb, comments, cookie/consent, share/social, related, newsletter, etc.
+  The card shows which region it counted from. Secondary references are also
+  shown: paragraph count, heading words, reading time (~200 wpm), and a "whole
+  page" figure (all body text) so you can see how much boilerplate was excluded.
+  Tokenization uses Unicode letter/number matching, so accented and non-Latin
+  scripts count correctly and contractions/hyphenated terms count as one word.
 - **Title** and **meta description** with character lengths (color-coded against
   common length guidance).
 - **Headings** — H1–H6 counts in a grid, with the H1/H2 text listed and a warning

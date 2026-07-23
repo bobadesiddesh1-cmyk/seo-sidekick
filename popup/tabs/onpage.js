@@ -63,13 +63,15 @@
     var card = el('div', { class: 'op-wordcard' });
     card.innerHTML =
       '<div class="op-wc-main"><span class="op-wc-num">' + (wc.paragraphs || 0) + '</span>' +
-      '<span class="op-wc-lbl">words in &lt;p&gt; body text</span></div>' +
+      '<span class="op-wc-lbl">words of main content</span></div>' +
       '<div class="op-wc-sub">' +
       '<span><b>' + (wc.paragraphElements || 0) + '</b> paragraphs</span>' +
       '<span><b>' + (wc.readingTimeMin || 1) + '</b> min read</span>' +
       '<span><b>' + (wc.headings || 0) + '</b> heading words</span>' +
-      '<span><b>' + (wc.bodyText || 0) + '</b> all body words</span>' +
-      '</div>';
+      '<span><b>' + (wc.bodyText || 0) + '</b> whole page</span>' +
+      '</div>' +
+      '<div class="op-wc-note">Counted from ' + esc(wc.contentRoot || 'the page') +
+      ', excluding nav, header, footer &amp; sidebars.</div>';
     wrap.appendChild(card);
 
     // ---- Title ----
