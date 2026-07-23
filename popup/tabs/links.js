@@ -61,7 +61,7 @@
       'Checked <b>' + data.checked + '</b> of <b>' + data.total + '</b> links' +
       (data.truncated ? ' <span class="pill pill-warn">capped at 300</span>' : '') +
       '<br><b>' + broken.length + '</b> broken · <b>' + redirects.length +
-      '</b> redirects · <b>' + unknown.length + '</b> unknown (CORS) · <b>' +
+      '</b> redirects · <b>' + unknown.length + '</b> unknown · <b>' +
       ok.length + '</b> OK (hidden)';
 
     // Sort broken-first, then redirect, unknown, then OK (OK hidden by default).
@@ -76,7 +76,7 @@
 
     if (shown.length === 0) {
       wrap.appendChild(ctx.el('div', { class: 'empty-note',
-        text: 'No broken links, redirects, or CORS-blocked links found. ' +
+        text: 'No broken links or redirects found. ' +
               ok.length + ' link(s) returned OK.' }));
       return;
     }
@@ -130,7 +130,7 @@
     if (l.state === 'redirect') {
       return l.redirectHops >= 2 ? '2+ hops' : (l.status ? ('Redirect ' + l.status) : 'Redirect');
     }
-    if (l.state === 'unknown') return 'Unknown (CORS)';
+    if (l.state === 'unknown') return 'Unknown';
     return 'OK';
   }
 
