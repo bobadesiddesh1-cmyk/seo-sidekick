@@ -20,10 +20,16 @@ the default chosen is recorded here with a one-line rationale.
 
 ## Module 1 — Broken Link Checker
 
-- **HEAD-first, GET fallback for same-origin.** `fetch(HEAD, no-cors)` returns an
-  opaque response (status 0) for cross-origin, so we cannot read its status. For
-  same-origin links we retry with `GET` (readable status). Cross-origin links
-  that stay opaque are labelled **"Unknown (CORS)"** rather than guessed.
+- **Fetches run in the background service worker, not the page.** MV3
+  content-script/page fetches are subject to CORS, so cross-origin links could
+  only ever be reported as "Unknown (CORS)" — which made the checker useless for
+  external links (the exact bug this fixes). The injected script now only
+  *collects* links from the DOM; the service worker (which has `host_permissions`)
+  performs the fetches and **bypasses CORS**, returning real statuses for external
+  links too. This is why the manifest requests `host_permissions: ["*://*/*"]`.
+- **HEAD-first, GET fallback.** HEAD is cheap; when a server rejects it
+  (405/403/501) or it errors, we retry with GET and reclassify. Requests use
+  `credentials: 'omit'` so links are checked anonymously (how a crawler sees them).
 - **Concurrency = 6, timeout = 8s, cap = 300 links.** Fixed pool of 6 workers
   drains a FIFO queue. Each request has its own `AbortController` with an 8s
   timer. 300-link cap is first-300-in-DOM-order; truncation is surfaced in the UI.

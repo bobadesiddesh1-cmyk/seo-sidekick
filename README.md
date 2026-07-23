@@ -36,10 +36,12 @@ same-document `<a href>` (relative URLs resolved, duplicates removed, and
 `mailto:`/`tel:`/`javascript:`/`#`-only anchors skipped), caps at 300 links in
 DOM order (truncation is noted in the UI), and checks each one:
 
-- **HEAD first**, falling back to **GET for same-origin** links when HEAD is
-  rejected or blocked. Cross-origin links that a server won't expose via CORS are
-  probed with a no-cors request and labelled **"Unknown (CORS) — open manually"**
-  rather than guessed.
+- The links are collected from the page, then checked **from the background
+  service worker** (which has host permissions and therefore bypasses CORS), so
+  **external** links get real HTTP statuses — not "Unknown (CORS)". Each check is
+  **HEAD first**, falling back to **GET** when a server rejects HEAD (405/403/501)
+  or the HEAD errors. Links are checked anonymously (no cookies sent), i.e. the
+  way a crawler sees them.
 - **6 concurrent requests**, the rest queued; **8s timeout** each via
   `AbortController`; one bad URL never hangs the batch (`Promise.allSettled`).
 - **Classification:** 2xx = OK (hidden by default), 3xx / `response.redirected` =
@@ -174,9 +176,14 @@ analytics, and makes **no** network request except:
 2. opening a Google search tab when you change SERP location.
 
 Permissions requested: `storage` (local history + preferences only), `activeTab`
-and `scripting` (to inject the on-demand tools when you click a button). The only
-persistent content script runs on Google search result pages, purely for the
-"Viewing as" badge and reading the current query.
+and `scripting` (to inject the on-demand tools when you click a button), and
+`host_permissions` for all sites — this is required **only** so the Broken Link
+Checker's background worker can fetch the link targets you ask it to check
+(browsers block cross-origin checks from the page itself via CORS). It is used
+solely for the checks you explicitly trigger; nothing is fetched in the
+background on its own, and nothing is sent anywhere. The only persistent content
+script runs on Google search result pages, purely for the "Viewing as" badge and
+reading the current query.
 
 ---
 
