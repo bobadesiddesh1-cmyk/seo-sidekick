@@ -131,27 +131,135 @@
       if (n && c && !(n in twitter)) twitter[n] = c;
     });
 
-    // ---- structured data (JSON-LD) -----------------------------------------
-    var jsonLdTypes = [];
-    qa('script[type="application/ld+json"]').forEach(function (s) {
-      try {
-        var data = JSON.parse(s.textContent);
-        collectTypes(data, jsonLdTypes);
-      } catch (e) { /* invalid JSON-LD — ignore */ }
-    });
-    function collectTypes(node, out) {
-      if (!node) return;
-      if (Array.isArray(node)) { node.forEach(function (n) { collectTypes(n, out); }); return; }
-      if (typeof node === 'object') {
-        var t = node['@type'];
-        if (t) {
-          (Array.isArray(t) ? t : [t]).forEach(function (x) {
-            if (out.indexOf(x) === -1) out.push(x);
-          });
-        }
-        if (node['@graph']) collectTypes(node['@graph'], out);
-      }
+    // ---- STRUCTURED DATA (JSON-LD + Microdata + RDFa) ----------------------
+    // Recommended properties for common schema.org types — used for light
+    // validation ("Article is missing recommended property: author").
+    var SCHEMA_RECOMMENDED = {
+      Article: ['headline', 'image', 'author', 'datePublished'],
+      NewsArticle: ['headline', 'image', 'author', 'datePublished'],
+      BlogPosting: ['headline', 'image', 'author', 'datePublished'],
+      Product: ['name', 'image', 'offers'],
+      Offer: ['price', 'priceCurrency'],
+      BreadcrumbList: ['itemListElement'],
+      Organization: ['name', 'url', 'logo'],
+      LocalBusiness: ['name', 'address', 'telephone'],
+      FAQPage: ['mainEntity'],
+      QAPage: ['mainEntity'],
+      Recipe: ['name', 'image', 'recipeIngredient', 'recipeInstructions'],
+      Event: ['name', 'startDate', 'location'],
+      VideoObject: ['name', 'thumbnailUrl', 'uploadDate'],
+      Person: ['name'],
+      WebSite: ['name', 'url'],
+      WebPage: ['name'],
+      Review: ['reviewRating', 'author'],
+      AggregateRating: ['ratingValue', 'reviewCount'],
+      JobPosting: ['title', 'datePosted', 'hiringOrganization']
+    };
+
+    function typeName(t) {
+      // Accept a bare type, an array, or a full schema.org URL.
+      if (Array.isArray(t)) return t.map(typeName).filter(Boolean);
+      if (typeof t !== 'string') return '';
+      var m = t.replace(/\/$/, '');
+      var slash = m.lastIndexOf('/'), hash = m.lastIndexOf('#');
+      var cut = Math.max(slash, hash);
+      return cut >= 0 ? m.slice(cut + 1) : m;
     }
+    function pushUnique(arr, v) {
+      (Array.isArray(v) ? v : [v]).forEach(function (x) {
+        if (x && arr.indexOf(x) === -1) arr.push(x);
+      });
+    }
+
+    // --- JSON-LD: parse each block, capture types + property keys + validity.
+    var jsonLdBlocks = [];   // { types, props, warnings, invalid }
+    var jsonLdItemCount = 0;
+    var jsonLdInvalid = 0;
+    var jsonLdAllTypes = [];
+
+    function inspectItem(node) {
+      if (!node || typeof node !== 'object' || Array.isArray(node)) return;
+      var t = node['@type'];
+      if (!t && !node['@graph']) return;
+      if (node['@graph']) { (node['@graph'] || []).forEach(inspectItem); }
+      if (!t) return;
+      jsonLdItemCount++;
+      var names = typeName(t);
+      names = Array.isArray(names) ? names : [names];
+      pushUnique(jsonLdAllTypes, names);
+      var props = Object.keys(node).filter(function (k) { return k.charAt(0) !== '@'; });
+      var warnings = [];
+      names.forEach(function (nm) {
+        var rec = SCHEMA_RECOMMENDED[nm];
+        if (rec) rec.forEach(function (p) {
+          if (props.indexOf(p) === -1) warnings.push(nm + ' is missing recommended property "' + p + '"');
+        });
+      });
+      jsonLdBlocks.push({
+        types: names,
+        props: props.slice(0, 12),
+        propCount: props.length,
+        warnings: warnings,
+        invalid: false
+      });
+      // Recurse into nested objects/arrays to catch embedded items (e.g. @graph,
+      // mainEntity, itemListElement) — but only one level of arrays deep here.
+      Object.keys(node).forEach(function (k) {
+        if (k === '@type' || k === '@context') return;
+        var v = node[k];
+        if (Array.isArray(v)) v.forEach(function (x) { if (x && x['@type']) inspectItem(x); });
+        else if (v && typeof v === 'object' && v['@type']) inspectItem(v);
+      });
+    }
+
+    qa('script[type="application/ld+json"]').forEach(function (s) {
+      var raw = s.textContent || '';
+      if (!raw.trim()) return;
+      var data;
+      try { data = JSON.parse(raw); }
+      catch (e) {
+        jsonLdInvalid++;
+        jsonLdBlocks.push({ types: [], props: [], propCount: 0,
+          warnings: ['Invalid JSON — this JSON-LD block does not parse'], invalid: true });
+        return;
+      }
+      (Array.isArray(data) ? data : [data]).forEach(inspectItem);
+    });
+
+    // --- Microdata: itemscope / itemtype.
+    var microTypes = [];
+    var microItems = qa('[itemscope]');
+    microItems.forEach(function (el) {
+      var it = attr(el, 'itemtype');
+      if (it) pushUnique(microTypes, typeName(it.split(/\s+/)));
+    });
+
+    // --- RDFa: typeof / vocab / property.
+    var rdfaTypes = [];
+    var rdfaNodes = qa('[typeof]');
+    rdfaNodes.forEach(function (el) {
+      var tof = attr(el, 'typeof');
+      if (tof) pushUnique(rdfaTypes, typeName(tof.split(/\s+/)));
+    });
+    var rdfaHasVocab = !!q('[vocab], [property][content], [property][href]');
+
+    var formats = [];
+    if (jsonLdItemCount || jsonLdInvalid) formats.push('JSON-LD');
+    if (microItems.length) formats.push('Microdata');
+    if (rdfaNodes.length || rdfaHasVocab) formats.push('RDFa');
+
+    var structuredData = {
+      formats: formats,
+      jsonLd: {
+        itemCount: jsonLdItemCount,
+        blockCount: jsonLdBlocks.length,
+        invalid: jsonLdInvalid,
+        types: jsonLdAllTypes,
+        blocks: jsonLdBlocks
+      },
+      microdata: { count: microItems.length, types: microTypes },
+      rdfa: { count: rdfaNodes.length, types: rdfaTypes }
+    };
 
     // ---- WORD COUNT (MAIN CONTENT only) ------------------------------------
     // Goal: count the article/body copy, NOT the whole page (nav, header,
@@ -296,7 +404,7 @@
       links: { total: linkTotal, internal: linkInternal, external: linkExternal, nofollow: linkNofollow },
       openGraph: og,
       twitter: twitter,
-      jsonLd: { count: jsonLdTypes.length, types: jsonLdTypes },
+      structuredData: structuredData,
       wordCount: {
         paragraphs: paragraphWords,        // PRIMARY — main-content <p> words
         paragraphElements: paragraphCount, // number of counted <p> elements

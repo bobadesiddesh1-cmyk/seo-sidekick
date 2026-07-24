@@ -81,8 +81,15 @@ SEO elements directly from the DOM and reports them at a glance:
   (flags `noindex`), viewport, `lang`, and charset.
 - **Social tags** — `og:title` / `og:description` / `og:image` and
   `twitter:card` presence.
-- **Structured data** — number of JSON-LD blocks and the `@type`s detected.
-- **Export CSV** writes every metric for the page.
+- **Structured data (schema.org)** — detects all three formats: **JSON-LD**,
+  **Microdata** (`itemscope`/`itemtype`), and **RDFa** (`typeof`/`vocab`). For
+  JSON-LD it lists each item's `@type` and its properties, flags **invalid
+  JSON-LD** blocks, and runs a light **validation** — warning when a common type
+  is missing a recommended property (e.g. "Article is missing recommended
+  property author", "Product is missing offers"). Nested items (`@graph`,
+  `mainEntity`, `itemListElement`, offers, etc.) are walked too.
+- **Export CSV** writes every metric for the page, including the schema formats,
+  types, item counts, and validation warnings.
 
 ### 7 · Speed — PageSpeed Insights
 Click **Run test** to fetch a Lighthouse report for the current page from
