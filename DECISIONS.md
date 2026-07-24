@@ -111,6 +111,25 @@ the default chosen is recorded here with a one-line rationale.
   live document — no network requests. Runs as a self-contained injected function
   like Modules 1/2/5, invoked from `background.js`.
 
+## Module 7 — PageSpeed Insights
+
+- **Uses Google's public PSI API (`pagespeedonline/v5`).** Building a Lighthouse
+  runner into the extension is impractical; PSI returns the same Lighthouse
+  scores + Core Web Vitals plus real-user CrUX field data in one call. We request
+  the `performance`, `accessibility`, `best-practices` and `seo` categories.
+- **Fetched from the popup, not the background.** The call is user-initiated and
+  the result is shown in the popup; `host_permissions` already allows the
+  cross-origin request. `credentials:'omit'` and a 60s `AbortController` timeout.
+  Results are cached per strategy for the popup session so toggling Mobile/Desktop
+  doesn't refetch.
+- **Optional API key, stored locally.** Keyless works for occasional checks;
+  heavy users can paste a Google API key (kept in `chrome.storage.local`) to raise
+  the quota. A 429/quota response shows an actionable hint pointing at the field.
+- **Privacy trade-off, made explicit.** This is the only feature that contacts a
+  third party: the tested URL is sent to Google's PSI API — but only on an
+  explicit "Run test" click, and only for public http(s) URLs (local/private/
+  browser pages are blocked in the UI). Documented in the tab and the README.
+
 ## Icons
 
 - **Generated as flat PNGs** with a magnifying-glass-on-teal mark via a tiny

@@ -35,6 +35,12 @@
       </span>
       <span class="tab-label">On-Page</span>
     </button>
+    <button class="tab" data-tab="speed" role="tab" aria-selected="false" title="PageSpeed Insights">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"></path><path d="M5.6 18.4a9 9 0 1 1 12.8 0"></path><circle cx="12" cy="14" r="1.4"></circle></svg>
+      </span>
+      <span class="tab-label">Speed</span>
+    </button>
     <button class="tab" data-tab="hreflang" role="tab" aria-selected="false" title="Hreflang Validator">
       <span class="tab-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>
@@ -89,6 +95,26 @@
       </div>
       <div id="onpage-status" class="status" role="status"></div>
       <div id="onpage-results" class="results"></div>
+    </section>
+
+    <!-- Module 7: PageSpeed -->
+    <section class="panel" data-panel="speed">
+      <div class="panel-head">
+        <h2>PageSpeed Insights</h2>
+        <p class="muted">Lighthouse score + Core Web Vitals for the current page, via Google's PSI API.</p>
+      </div>
+      <div class="row" style="gap:4px;">
+        <button class="btn btn-ghost speed-strat" data-strat="mobile">📱 Mobile</button>
+        <button class="btn btn-ghost speed-strat" data-strat="desktop">🖥️ Desktop</button>
+      </div>
+      <div class="row">
+        <button id="speed-run" class="btn btn-primary">Run test</button>
+      </div>
+      <div id="speed-target" class="muted tiny" style="word-break:break-all;"></div>
+      <label class="field-label" for="speed-key">Google API key (optional — raises the rate limit)</label>
+      <input id="speed-key" class="input" type="password" placeholder="Paste a PageSpeed API key (stored locally)">
+      <div id="speed-status" class="status" role="status"></div>
+      <div id="speed-results" class="results"></div>
     </section>
 
     <!-- Module 2: Hreflang -->
@@ -193,6 +219,7 @@
   <!-- tab modules -->
   <script src="tabs/links.js"></script>
   <script src="tabs/onpage.js"></script>
+  <script src="tabs/speed.js"></script>
   <script src="tabs/hreflang.js"></script>
   <script src="tabs/highlight.js"></script>
   <script src="tabs/location.js"></script>

@@ -1,14 +1,16 @@
 # SEO Sidekick — Free On-Page & SERP Toolkit
 
-The free **SEO Minion replacement**. Six daily SEO checks in one toolbar icon:
-broken links, on-page element analysis with word count, hreflang validation,
-dofollow/nofollow highlighting, SERP location spoofing, and live pixel-width
-title/meta preview.
+The free **SEO Minion replacement**. Seven daily SEO checks in one toolbar icon:
+broken links, on-page element analysis with word count, PageSpeed score, hreflang
+validation, dofollow/nofollow highlighting, SERP location spoofing, and live
+pixel-width title/meta preview.
 
-**Zero account · zero paywall · zero data collected.** Everything runs on your
-device. The only network requests the extension ever makes are the link/hreflang
-checks *you* explicitly trigger and opening a Google search tab when you change
-SERP location. No analytics, no telemetry, no remote config, no sign-in.
+**Zero account · zero paywall · zero sign-in.** Everything runs on your device.
+The only network requests the extension ever makes are ones *you* explicitly
+trigger: the link/hreflang checks, opening a Google search tab when you change
+SERP location, and — only if you click Run test on the Speed tab — a PageSpeed
+Insights lookup that sends the page URL to Google's API. No analytics, no
+telemetry, no remote config, no sign-in.
 
 ---
 
@@ -24,9 +26,9 @@ No build step. No npm. No bundler. It loads exactly as-is.
 
 ---
 
-## The six modules
+## The seven modules
 
-Open the popup and switch between six tabs. Tab switching is instant — results
+Open the popup and switch between seven tabs. Tab switching is instant — results
 are cached in memory for the life of the popup session and never re-fetched on
 switch.
 
@@ -81,6 +83,27 @@ SEO elements directly from the DOM and reports them at a glance:
   `twitter:card` presence.
 - **Structured data** — number of JSON-LD blocks and the `@type`s detected.
 - **Export CSV** writes every metric for the page.
+
+### 7 · Speed — PageSpeed Insights
+Click **Run test** to fetch a Lighthouse report for the current page from
+Google's public **PageSpeed Insights (PSI) API**, with a **Mobile / Desktop**
+toggle. It shows:
+
+- The big **Performance score** (0–100, color-coded), plus the **Accessibility**,
+  **Best Practices**, and **SEO** category scores.
+- **Lab data** (Lighthouse): LCP, CLS, TBT, FCP, Speed Index, TTI — each with a
+  pass/average/fail dot.
+- **Real-user data** (Chrome UX Report / CrUX, 28-day) when the URL has enough
+  traffic: LCP, INP, CLS, FCP and an overall Fast/Average/Slow rating. Pages
+  without enough field data show a clear note (lab data still applies).
+- An optional **Google API key** field (stored locally) to raise the rate limit
+  for heavy use — keyless works for occasional checks.
+
+> **Privacy note.** This is the one feature that talks to a third party: when you
+> click Run test, the current page's **URL is sent to Google's PSI API** (that's
+> how the test works). It's only ever sent on that click — never automatically —
+> and only public http(s) URLs can be tested (local, private, and browser pages
+> are blocked in the UI). Nothing else leaves your device.
 
 ### 2 · Hreflang — Hreflang Validator
 Runs **automatically** when you open the popup (no button). It reads the current
@@ -216,7 +239,10 @@ reading the current query.
    count driven by the page's `<p>` text (nav/menu/script text excluded), correct
    H1–H6 counts, image alt stats, canonical/robots, and JSON-LD types; CSV export
    downloads every metric.
-8. **Tabs.** All six tabs switch instantly with no re-scan.
+8. **Module 7.** On the Speed tab, click Run test on a public page → a
+   performance score, category scores, and Core Web Vitals (lab + CrUX field
+   data where available) render; the Mobile/Desktop toggle re-runs for each.
+9. **Tabs.** All seven tabs switch instantly with no re-scan.
 
 ---
 
@@ -224,7 +250,7 @@ reading the current query.
 
 ```
 seo-sidekick/
-├── manifest.json                 MV3 manifest (storage, activeTab, scripting)
+├── manifest.json                 MV3 manifest (storage, activeTab, scripting, host_permissions)
 ├── background.js                 service worker — scripting-injection orchestration
 ├── content/
 │   ├── serp-adapter.js           Google SERP query/location-badge detection (2 strategies)
@@ -237,7 +263,7 @@ seo-sidekick/
 │   └── snippet-reader.js         Module 5 — reads title/meta from active tab
 ├── popup/
 │   ├── popup.html / popup.css / popup.js   5-tab shell + router
-│   └── tabs/                     links.js, onpage.js, hreflang.js, highlight.js, location.js, preview.js
+│   └── tabs/                     links.js, onpage.js, speed.js, hreflang.js, highlight.js, location.js, preview.js
 ├── shared/
 │   ├── storage.js                chrome.storage.local promise wrapper + history
 │   ├── csv.js                    RFC-4180 CSV builder + download
@@ -256,17 +282,21 @@ seo-sidekick/
 **Title:** SEO Sidekick — Free On-Page & SERP Toolkit
 
 **Summary (132 chars):**
-> Free, no account, no data collected. Broken links, hreflang, dofollow/nofollow, SERP location & pixel snippet preview in one click.
+> Free, no account, no sign-in. Broken links, on-page analyzer, PageSpeed, hreflang, link highlighter, SERP location & snippet preview.
 
 **Description:**
-> **Free, no account, no data collected — the SEO Minion replacement.**
+> **Free, no account, no sign-in — the SEO Minion replacement.**
 >
-> SEO Sidekick puts five daily on-page and SERP checks behind one toolbar icon,
-> with nothing to sign up for and nothing tracked. Everything runs locally in your
+> SEO Sidekick puts seven daily on-page and SERP checks behind one toolbar icon,
+> with nothing to sign up for and no analytics. Everything runs locally in your
 > browser.
 >
-> • **Broken Link Checker** — scan up to 300 links, HEAD-first with smart CORS
->   handling, redirect-chain detection, sortable results, one-click CSV export.
+> • **Broken Link Checker** — scan up to 300 links from the background worker
+>   (real statuses for external links), redirect detection, sortable results, CSV.
+> • **On-Page Analyzer** — title, meta, headings, image alt, links, canonical,
+>   schema, and a main-content word count that ignores nav/header/footer/sidebars.
+> • **PageSpeed Insights** — Lighthouse score and Core Web Vitals (lab + real-user
+>   CrUX) for the current page, Mobile/Desktop, via Google's PSI API.
 > • **Hreflang Validator** — real ISO 639-1 code validation, self-reference and
 >   duplicate detection, and return-tag reciprocity checks with plain-English fixes.
 > • **Dofollow/Nofollow Highlighter** — outline every link by follow status and
@@ -276,6 +306,7 @@ seo-sidekick/
 > • **Pixel-Width Snippet Preview** — pixel-accurate title/meta widths with
 >   desktop + mobile truncation points and a live Google-style preview card.
 >
-> No analytics. No telemetry. No sign-in. The only requests it makes are the link
-> checks you trigger and the Google searches you run. Built for SEO professionals
-> who lost their free on-page toolkit and want it back — free, for good.
+> No analytics. No telemetry. No sign-in. The only network requests are ones you
+> trigger — link/hreflang checks, opening a Google search, and (only if you click
+> Run test) a PageSpeed lookup that sends the page URL to Google. Built for SEO
+> professionals who lost their free on-page toolkit and want it back — for good.

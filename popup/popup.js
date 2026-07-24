@@ -115,8 +115,9 @@
         try { mod.init(ctx); } catch (e) { /* silent */ }
       }
     });
-    // Also init highlight + location so their state (toggle, history) is ready.
-    ['highlight', 'location'].forEach(function (n) {
+    // Also init highlight + location + speed so their state (toggle, history,
+    // API key, target URL) is ready before the user opens the tab.
+    ['highlight', 'location', 'speed'].forEach(function (n) {
       var mod = TABS[n];
       if (mod && !initialized[n] && typeof mod.init === 'function') {
         initialized[n] = true;
