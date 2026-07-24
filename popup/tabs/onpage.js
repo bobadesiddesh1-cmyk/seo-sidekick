@@ -160,11 +160,65 @@
     socialRows.push(keyVal(ctx, 'twitter:card', tw['twitter:card'] || '(missing)', tw['twitter:card'] ? 'ok' : 'int'));
     wrap.appendChild(section(ctx, 'Social tags', socialRows));
 
-    var jl = d.jsonLd || { count: 0, types: [] };
-    wrap.appendChild(section(ctx, 'Structured data (JSON-LD)', [
-      keyVal(ctx, 'Schema blocks', String(jl.count), jl.count ? 'ok' : 'warn'),
-      keyVal(ctx, 'Types', jl.types.length ? jl.types.join(', ') : '(none detected)', jl.types.length ? 'ok' : 'int')
-    ]));
+    wrap.appendChild(renderStructuredData(ctx, d.structuredData));
+  }
+
+  function renderStructuredData(ctx, sd) {
+    var el = ctx.el;
+    sd = sd || { formats: [], jsonLd: { itemCount: 0, blocks: [], types: [], invalid: 0 }, microdata: { count: 0, types: [] }, rdfa: { count: 0, types: [] } };
+    var sec = section(ctx, 'Structured data (schema.org)', []);
+
+    // Format summary line.
+    var formatsLine = el('div', { class: 'op-kv' });
+    formatsLine.appendChild(el('span', { class: 'op-k', text: 'Formats found' }));
+    formatsLine.appendChild(el('span', {
+      class: 'op-v ' + (sd.formats.length ? 'c-ok' : 'c-warn'),
+      text: sd.formats.length ? sd.formats.join(', ') : '(none detected)'
+    }));
+    sec.appendChild(formatsLine);
+
+    if (!sd.formats.length) {
+      sec.appendChild(el('div', { class: 'op-note warn',
+        text: 'No JSON-LD, Microdata or RDFa found. Structured data helps Google show rich results.' }));
+      return sec;
+    }
+
+    var jl = sd.jsonLd || {};
+    // JSON-LD blocks — each with its type(s), property count, and warnings.
+    if (jl.blockCount) {
+      sec.appendChild(el('div', { class: 'op-title', style: 'margin-top:8px;',
+        text: 'JSON-LD · ' + jl.itemCount + ' item(s)' + (jl.invalid ? ' · ' + jl.invalid + ' invalid' : '') }));
+      (jl.blocks || []).forEach(function (b) {
+        var card = el('div', { class: 'sd-item' + (b.invalid || (b.warnings && b.warnings.length) ? ' warn' : '') });
+        var head = el('div', { class: 'sd-head' }, [
+          el('span', { class: 'sd-type', text: b.invalid ? '⚠ invalid block' : (b.types.join(', ') || '(no @type)') }),
+          b.invalid ? null : el('span', { class: 'sd-count', text: (b.propCount || 0) + ' props' })
+        ]);
+        card.appendChild(head);
+        if (!b.invalid && b.props && b.props.length) {
+          card.appendChild(el('div', { class: 'sd-props', text: b.props.join(' · ') +
+            (b.propCount > b.props.length ? ' …' : '') }));
+        }
+        (b.warnings || []).forEach(function (w) {
+          card.appendChild(el('div', { class: 'sd-warn', text: '⚠ ' + w }));
+        });
+        if (!b.invalid && (!b.warnings || !b.warnings.length)) {
+          card.appendChild(el('div', { class: 'sd-ok', text: '✓ has recommended properties' }));
+        }
+        sec.appendChild(card);
+      });
+    }
+
+    // Microdata + RDFa summaries.
+    if (sd.microdata && sd.microdata.count) {
+      sec.appendChild(keyVal(ctx, 'Microdata items', sd.microdata.count +
+        (sd.microdata.types.length ? '  (' + sd.microdata.types.join(', ') + ')' : ''), 'ok'));
+    }
+    if (sd.rdfa && sd.rdfa.count) {
+      sec.appendChild(keyVal(ctx, 'RDFa items', sd.rdfa.count +
+        (sd.rdfa.types.length ? '  (' + sd.rdfa.types.join(', ') + ')' : ''), 'ok'));
+    }
+    return sec;
   }
 
   // ---- small UI builders ----
@@ -226,7 +280,21 @@
     rows.push(['Viewport', d.viewport]);
     rows.push(['Lang', d.lang]);
     rows.push(['Charset', d.charset]);
-    rows.push(['JSON-LD types', (d.jsonLd && d.jsonLd.types || []).join(' | ')]);
+    var sd = d.structuredData || {};
+    rows.push(['Structured data formats', (sd.formats || []).join(' | ')]);
+    rows.push(['JSON-LD types', ((sd.jsonLd && sd.jsonLd.types) || []).join(' | ')]);
+    rows.push(['JSON-LD items', (sd.jsonLd && sd.jsonLd.itemCount) || 0]);
+    rows.push(['JSON-LD invalid blocks', (sd.jsonLd && sd.jsonLd.invalid) || 0]);
+    rows.push(['Microdata items', (sd.microdata && sd.microdata.count) || 0]);
+    rows.push(['Microdata types', ((sd.microdata && sd.microdata.types) || []).join(' | ')]);
+    rows.push(['RDFa items', (sd.rdfa && sd.rdfa.count) || 0]);
+    rows.push(['RDFa types', ((sd.rdfa && sd.rdfa.types) || []).join(' | ')]);
+    // Schema validation warnings (missing recommended properties, invalid JSON).
+    var sdWarn = [];
+    ((sd.jsonLd && sd.jsonLd.blocks) || []).forEach(function (b) {
+      (b.warnings || []).forEach(function (w) { sdWarn.push(w); });
+    });
+    rows.push(['Schema warnings', sdWarn.join(' | ')]);
     Object.keys(d.openGraph || {}).forEach(function (k) { rows.push([k, d.openGraph[k]]); });
     Object.keys(d.twitter || {}).forEach(function (k) { rows.push([k, d.twitter[k]]); });
 

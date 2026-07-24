@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SEO Sidekick — Free On-Page & SERP Toolkit",
   "short_name": "SEO Sidekick",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Free SEO Minion replacement: broken links, on-page analyzer, PageSpeed score, hreflang validation, dofollow/nofollow highlighting, SERP location changer, pixel-width snippet preview. No account, no paywall.",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["*://*/*"],

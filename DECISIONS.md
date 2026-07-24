@@ -107,9 +107,19 @@ the default chosen is recorded here with a one-line rationale.
   hyphens keep contractions and hyphenated compounds as single words. An ASCII-ish
   fallback regex covers the rare engine without Unicode escapes.
 - **Reads the DOM, no fetch.** Everything (title, meta, canonical, robots,
-  headings, images/alt, links, OG/Twitter, JSON-LD `@type`s) is read from the
+  headings, images/alt, links, OG/Twitter, structured data) is read from the
   live document — no network requests. Runs as a self-contained injected function
   like Modules 1/2/5, invoked from `background.js`.
+- **Structured data goes beyond `@type` names.** The first version only listed
+  JSON-LD `@type`s. It now detects all three on-page formats — **JSON-LD**,
+  **Microdata** (`itemscope`/`itemtype`), and **RDFa** (`typeof`/`vocab`) — and
+  for JSON-LD it parses each block, recurses through `@graph`/nested items,
+  captures each item's property keys, flags blocks whose JSON does not parse, and
+  runs a light validation against a table of recommended properties for common
+  schema.org types (Article, Product, BreadcrumbList, Organization, FAQPage,
+  Recipe, Event, LocalBusiness, VideoObject, …). It is a heuristic surfacing tool,
+  not a full schema.org validator — it flags likely gaps, it doesn't guarantee
+  Rich Results eligibility (Google's own test remains the source of truth).
 
 ## Module 7 — PageSpeed Insights
 
