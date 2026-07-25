@@ -93,30 +93,77 @@
       headings[k].forEach(function (t) { headingWordTotal += countWords(t); });
     });
 
-    // ---- images -------------------------------------------------------------
+    // ---- images (counts + full inventory) ----------------------------------
+    var IMG_CAP = 400;
     var imgs = qa('img');
-    var imgMissingAlt = 0, imgEmptyAlt = 0, imgWithAlt = 0;
+    var imgMissingAlt = 0, imgEmptyAlt = 0, imgWithAlt = 0, imgWithoutTitle = 0;
+    var imageList = [];
     imgs.forEach(function (im) {
       var a = im.getAttribute('alt');
+      var hasAlt = a !== null && a.trim() !== '';
       if (a === null) imgMissingAlt++;
       else if (a.trim() === '') imgEmptyAlt++;
       else imgWithAlt++;
+
+      var titleAttr = im.getAttribute('title');
+      var hasTitle = !!(titleAttr && titleAttr.trim());
+      if (!hasTitle) imgWithoutTitle++;
+
+      if (imageList.length < IMG_CAP) {
+        var rawSrc = im.currentSrc || im.getAttribute('src') ||
+          im.getAttribute('data-src') || im.getAttribute('data-lazy-src') || '';
+        var absSrc = rawSrc;
+        try { if (rawSrc) absSrc = new URL(rawSrc, location.href).href; } catch (e) {}
+        imageList.push({
+          src: absSrc,
+          alt: a === null ? null : a,
+          hasAlt: hasAlt,
+          title: titleAttr || '',
+          hasTitle: hasTitle
+        });
+      }
     });
 
-    // ---- links (quick counts) ----------------------------------------------
+    // ---- links (counts + full inventory) -----------------------------------
+    var LINK_CAP = 600;
     var linkTotal = 0, linkInternal = 0, linkExternal = 0, linkNofollow = 0;
+    var linkList = [];
+    var linkSeen = {};
+    var linkUnique = 0;
     qa('a[href]').forEach(function (a) {
       var href = a.getAttribute('href');
       if (!href) return;
       var t = href.trim().toLowerCase();
       if (t.charAt(0) === '#' || t.indexOf('javascript:') === 0 ||
           t.indexOf('mailto:') === 0 || t.indexOf('tel:') === 0) return;
+
+      var abs = href, internal = true, path = href;
+      try {
+        var u = new URL(href, location.href);
+        abs = u.href;
+        internal = u.hostname === pageHost;
+        path = internal ? (u.pathname + u.search + u.hash) : u.href;
+      } catch (e) {}
+
       linkTotal++;
-      var internal = true;
-      try { internal = new URL(href, location.href).hostname === pageHost; } catch (e) {}
       if (internal) linkInternal++; else linkExternal++;
+      if (!linkSeen[abs]) { linkSeen[abs] = true; linkUnique++; }
       var rel = (a.getAttribute('rel') || '').toLowerCase();
-      if (/(^|\s)(nofollow|sponsored|ugc)(\s|$)/.test(rel)) linkNofollow++;
+      var nofollow = /(^|\s)(nofollow|sponsored|ugc)(\s|$)/.test(rel);
+      if (nofollow) linkNofollow++;
+
+      if (linkList.length < LINK_CAP) {
+        var anchor = (a.textContent || a.getAttribute('aria-label') ||
+          (a.querySelector && a.querySelector('img') ? '[image link]' : '')).replace(/\s+/g, ' ').trim();
+        linkList.push({
+          href: abs,
+          display: path,
+          anchor: anchor.length > 80 ? anchor.slice(0, 79) + '…' : anchor,
+          hasAnchor: anchor.length > 0,
+          type: internal ? 'internal' : 'external',
+          nofollow: nofollow
+        });
+      }
     });
 
     // ---- Open Graph / Twitter ----------------------------------------------
@@ -400,8 +447,16 @@
       lang: htmlLang,
       headings: headings,
       headingCounts: headingCounts,
-      images: { total: imgs.length, missingAlt: imgMissingAlt, emptyAlt: imgEmptyAlt, withAlt: imgWithAlt },
-      links: { total: linkTotal, internal: linkInternal, external: linkExternal, nofollow: linkNofollow },
+      images: {
+        total: imgs.length, missingAlt: imgMissingAlt, emptyAlt: imgEmptyAlt,
+        withAlt: imgWithAlt, withoutTitle: imgWithoutTitle,
+        list: imageList, truncated: imgs.length > imageList.length
+      },
+      links: {
+        total: linkTotal, unique: linkUnique, internal: linkInternal,
+        external: linkExternal, nofollow: linkNofollow,
+        list: linkList, truncated: linkTotal > linkList.length
+      },
       openGraph: og,
       twitter: twitter,
       structuredData: structuredData,

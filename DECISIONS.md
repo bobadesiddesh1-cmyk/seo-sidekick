@@ -121,6 +121,23 @@ the default chosen is recorded here with a one-line rationale.
   not a full schema.org validator — it flags likely gaps, it doesn't guarantee
   Rich Results eligibility (Google's own test remains the source of truth).
 
+## Module 6 — Link & image inventories
+
+- **Full lists, not just counts.** Beyond the summary counts, the analyzer returns
+  the complete link list (URL, anchor text, internal/external, nofollow, and a
+  "has anchor text" flag) and image list (src, alt, title, has-alt, has-title),
+  rendered as Internal/External and Without-alt/With-alt sub-tabs with per-CSV
+  exports — matching the inventory views common SEO extensions provide.
+- **Caps:** links 600, images 400 (collected); the on-screen list shows the first
+  200 links / 150 images per filter with a "use export for the full list" note,
+  and the CSV includes everything collected. Prevents the popup from bogging down
+  on very large pages.
+- **"Complete" vs "incomplete":** a link is incomplete if it has no anchor text;
+  an image is incomplete if it is missing `alt` or `title`. Each inventory offers
+  an "export all" and an "export incomplete/without-anchor" CSV.
+- **Thumbnails** load directly in the popup (extension pages aren't CORS-limited
+  for `<img>` display) with an onerror fallback that hides broken thumbnails.
+
 ## Module 7 — PageSpeed Insights
 
 - **Uses Google's public PSI API (`pagespeedonline/v5`).** Building a Lighthouse

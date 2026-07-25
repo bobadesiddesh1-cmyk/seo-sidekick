@@ -286,6 +286,30 @@ body { min-height: 320px; }
 .op-note { font-size: 10.5px; margin-top: 6px; color: var(--fg-soft); }
 .op-note.bad { color: var(--bad); } .op-note.warn { color: var(--warn); } .op-note.ok { color: var(--ok); } .op-note.int { color: var(--fg-soft); }
 
+/* Inventory lists (links / images) */
+.mini-btn { padding: 6px 9px; font-size: 11px; }
+.sub-tabs { display: flex; gap: 4px; margin: 8px 0 4px; border-bottom: 1px solid var(--border); }
+.sub-tab {
+  border: none; background: transparent; color: var(--fg-soft); cursor: pointer;
+  font-size: 11.5px; font-weight: 600; padding: 5px 8px; border-bottom: 2px solid transparent;
+}
+.sub-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.inv-list { max-height: 260px; overflow-y: auto; }
+.inv-row { padding: 6px 2px; border-bottom: 1px solid var(--border); }
+.inv-href {
+  display: block; color: var(--accent-2); font-size: 11.5px; word-break: break-all;
+  text-decoration: none;
+}
+.inv-href:hover { text-decoration: underline; }
+.inv-sub { font-size: 11px; color: var(--fg-soft); margin-top: 2px; word-break: break-word; }
+.inv-sub.warn { color: var(--warn); }
+.img-row { display: flex; gap: 8px; align-items: flex-start; }
+.inv-thumb {
+  width: 44px; height: 44px; flex: 0 0 auto; object-fit: cover;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg-soft);
+}
+.inv-imgmeta { min-width: 0; flex: 1; }
+
 /* Structured-data items */
 .sd-item { border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px; margin-top: 6px; background: var(--bg-soft); }
 .sd-item.warn { border-color: color-mix(in srgb, var(--warn) 50%, var(--border)); }
