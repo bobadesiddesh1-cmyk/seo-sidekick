@@ -188,3 +188,18 @@ the default chosen is recorded here with a one-line rationale.
   explicitly triggers and (b) opening a Google search tab for Module 4. No
   analytics, no telemetry, no account, no remote config. This is the entire value
   proposition versus the paywalled incumbent.
+
+## Module 9 — Technical & Indexability
+
+- **Reads response headers, not just the DOM.** The differentiator here is the
+  `X-Robots-Tag` response header: a page can be `noindex` via an HTTP header with
+  nothing in the HTML, which DOM-only extensions miss entirely. The worker fetch
+  (host_permissions) exposes headers cross-origin.
+- **Single verdict** combines HTTP status + X-Robots-Tag + meta robots + canonical
+  + robots.txt Disallow. Hard blockers (noindex / non-2xx) flip the verdict to
+  "not indexable"; robots.txt disallow and a differing canonical are surfaced as
+  soft caveats (they affect indexing but aren't absolute).
+- **robots.txt / sitemap** reuse a compact longest-match matcher (Googlebot) and a
+  regex `<loc>` extractor. Sitemap-index files are detected and reported (we don't
+  recursively fetch every child to keep it fast); page-presence is checked for a
+  flat URL set with URL normalization (hash/trailing-slash-insensitive).

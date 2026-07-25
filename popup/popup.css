@@ -286,6 +286,18 @@ body { min-height: 320px; }
 .op-note { font-size: 10.5px; margin-top: 6px; color: var(--fg-soft); }
 .op-note.bad { color: var(--bad); } .op-note.warn { color: var(--warn); } .op-note.ok { color: var(--ok); } .op-note.int { color: var(--fg-soft); }
 
+/* Tech tab — indexability verdict */
+.verdict { display: flex; gap: 10px; align-items: center; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; border: 1px solid var(--border); }
+.verdict.ok { background: color-mix(in srgb, var(--ok) 12%, var(--bg-soft)); border-color: color-mix(in srgb, var(--ok) 40%, var(--border)); }
+.verdict.warn { background: color-mix(in srgb, var(--warn) 12%, var(--bg-soft)); border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); }
+.verdict.bad { background: color-mix(in srgb, var(--bad) 12%, var(--bg-soft)); border-color: color-mix(in srgb, var(--bad) 45%, var(--border)); }
+.verdict-ico { font-size: 24px; font-weight: 800; line-height: 1; }
+.verdict.ok .verdict-ico { color: var(--ok); }
+.verdict.warn .verdict-ico { color: var(--warn); }
+.verdict.bad .verdict-ico { color: var(--bad); }
+.verdict-txt { font-size: 12px; }
+.verdict-txt span { color: var(--fg-soft); font-size: 11px; }
+
 /* AI / GEO tab */
 .ai-sig { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
 .ai-sig-ico { font-weight: 800; width: 14px; text-align: center; }

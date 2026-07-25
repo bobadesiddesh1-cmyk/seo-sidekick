@@ -47,6 +47,12 @@
       </span>
       <span class="tab-label">Speed</span>
     </button>
+    <button class="tab" data-tab="tech" role="tab" aria-selected="false" title="Technical: indexability, robots & sitemap">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1 1.6 1.6 0 0 0 .3-.1"></path></svg>
+      </span>
+      <span class="tab-label">Tech</span>
+    </button>
     <button class="tab" data-tab="hreflang" role="tab" aria-selected="false" title="Hreflang Validator">
       <span class="tab-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>
@@ -134,6 +140,19 @@
       <input id="speed-key" class="input" type="password" placeholder="Paste a PageSpeed API key (stored locally)">
       <div id="speed-status" class="status" role="status"></div>
       <div id="speed-results" class="results"></div>
+    </section>
+
+    <!-- Module 9: Tech -->
+    <section class="panel" data-panel="tech">
+      <div class="panel-head">
+        <h2>Technical &amp; Indexability</h2>
+        <p class="muted">Will Google index this? Response headers, robots.txt & XML sitemap in one check.</p>
+      </div>
+      <div class="row">
+        <button id="tech-run" class="btn btn-primary">Run checks</button>
+      </div>
+      <div id="tech-status" class="status" role="status"></div>
+      <div id="tech-results" class="results"></div>
     </section>
 
     <!-- Module 2: Hreflang -->
@@ -239,6 +258,7 @@
   <script src="tabs/links.js"></script>
   <script src="tabs/onpage.js"></script>
   <script src="tabs/ai.js"></script>
+  <script src="tabs/tech.js"></script>
   <script src="tabs/speed.js"></script>
   <script src="tabs/hreflang.js"></script>
   <script src="tabs/highlight.js"></script>

@@ -1,6 +1,6 @@
 # SEO Sidekick — Free On-Page & SERP Toolkit
 
-The free **SEO Minion replacement**. Eight daily SEO checks in one toolbar icon:
+The free **SEO Minion replacement**. Nine daily SEO checks in one toolbar icon:
 broken links, on-page element analysis with word count, PageSpeed score, hreflang
 validation, dofollow/nofollow highlighting, SERP location spoofing, and live
 pixel-width title/meta preview.
@@ -26,9 +26,9 @@ No build step. No npm. No bundler. It loads exactly as-is.
 
 ---
 
-## The eight modules
+## The nine modules
 
-Open the popup and switch between eight tabs. Tab switching is instant — results
+Open the popup and switch between nine tabs. Tab switching is instant — results
 are cached in memory for the life of the popup session and never re-fetched on
 switch.
 
@@ -96,6 +96,22 @@ SEO elements directly from the DOM and reports them at a glance:
   `mainEntity`, `itemListElement`, offers, etc.) are walked too.
 - **Export CSV** writes every metric for the page, including the schema formats,
   types, item counts, and validation warnings.
+
+### 9 · Tech — Technical & Indexability
+Click **Run checks** for a crawlability/indexability audit that reads what
+DOM-only tools miss — the **response headers**:
+
+- **"Will Google index this?" verdict** — one clear answer combining HTTP status,
+  the **`X-Robots-Tag` response header**, meta robots, canonical, and the
+  robots.txt rule for this path. Hard blockers (noindex, non-200) vs. soft caveats
+  (robots.txt disallow, canonical to another URL) are separated.
+- **Response headers** — status, `X-Robots-Tag`, `content-type`, cache, encoding,
+  server, HSTS/CSP/X-Frame — the headers most on-page extensions ignore.
+- **robots.txt** — status, rule count, declared **sitemaps**, and whether
+  Googlebot is allowed for the current path.
+- **XML sitemap** — finds the sitemap (from robots.txt or `/sitemap.xml`), reports
+  whether it's a **sitemap index** or URL set, the URL count, and **whether the
+  current page is listed** in it.
 
 ### 8 · AI/GEO — AI Search / GEO Readiness
 Click **Analyze AI readiness** — the differentiator tab for the AI-search era.
@@ -299,7 +315,7 @@ seo-sidekick/
 │   └── snippet-reader.js         Module 5 — reads title/meta from active tab
 ├── popup/
 │   ├── popup.html / popup.css / popup.js   5-tab shell + router
-│   └── tabs/                     links.js, onpage.js, ai.js, speed.js, hreflang.js, highlight.js, location.js, preview.js
+│   └── tabs/                     links.js, onpage.js, ai.js, tech.js, speed.js, hreflang.js, highlight.js, location.js, preview.js
 ├── shared/
 │   ├── storage.js                chrome.storage.local promise wrapper + history
 │   ├── csv.js                    RFC-4180 CSV builder + download
