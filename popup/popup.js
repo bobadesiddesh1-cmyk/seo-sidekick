@@ -147,19 +147,13 @@
     wireExpand();
     await loadActiveTab();
 
-    // Initialize the default (links) tab, and eagerly init the auto-run tabs
-    // (on-page + hreflang + preview) so they populate before the user clicks.
+    // Initialize the default (links) tab, and eagerly init the fast DOM-only
+    // auto-run tabs (on-page + hreflang + preview) so they populate before the
+    // user clicks. The network-backed tabs (ai / tech / speed) and highlight are
+    // lazy: they init — and auto-run — only when their tab is first opened, so we
+    // never fire PageSpeed/robots fetches for tabs the user doesn't visit.
     activate('links');
     ['onpage', 'hreflang', 'preview'].forEach(function (n) {
-      var mod = TABS[n];
-      if (mod && !initialized[n] && typeof mod.init === 'function') {
-        initialized[n] = true;
-        try { mod.init(ctx); } catch (e) { /* silent */ }
-      }
-    });
-    // Also init highlight + location + speed so their state (toggle, history,
-    // API key, target URL) is ready before the user opens the tab.
-    ['highlight', 'location', 'speed', 'ai', 'tech'].forEach(function (n) {
       var mod = TABS[n];
       if (mod && !initialized[n] && typeof mod.init === 'function') {
         initialized[n] = true;

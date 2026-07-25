@@ -88,33 +88,39 @@
       valueRow(ctx, d.metaDescription.text || '(missing)', badge(ctx, dl + ' chars', descColor))
     ]));
 
-    // ---- Headings ----
+    // ---- Headings (full outline) ----
     var hc = d.headingCounts || {};
     var hgrid = el('div', { class: 'op-hgrid' });
     ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach(function (t) {
       var n = hc[t] || 0;
       var warn = (t === 'h1' && n !== 1);
-      var cell = el('div', { class: 'op-hcell' + (warn ? ' warn' : '') }, [
+      hgrid.appendChild(el('div', { class: 'op-hcell' + (warn ? ' warn' : '') }, [
         el('div', { class: 'n', text: String(n) }),
         el('div', { class: 'l', text: t.toUpperCase() })
-      ]);
-      hgrid.appendChild(cell);
+      ]));
     });
-    var hsec = section(ctx, 'Headings', [hgrid]);
+    var hsec = section(ctx, 'Headings outline', [hgrid]);
     if (hc.h1 !== 1) {
       hsec.appendChild(el('div', { class: 'op-note ' + (hc.h1 === 0 ? 'bad' : 'warn'),
         text: hc.h1 === 0 ? 'No H1 found — every page should have exactly one H1.'
                           : 'Found ' + hc.h1 + ' H1 tags — a page should have exactly one.' }));
     }
-    // list H1 + H2 text
-    (d.headings.h1 || []).forEach(function (t) {
-      hsec.appendChild(el('div', { class: 'op-hitem' }, [ badge(ctx, 'H1', 'int'), document.createTextNode(' ' + t) ]));
-    });
-    (d.headings.h2 || []).slice(0, 12).forEach(function (t) {
-      hsec.appendChild(el('div', { class: 'op-hitem' }, [ badge(ctx, 'H2', 'int'), document.createTextNode(' ' + t) ]));
-    });
-    if ((d.headings.h2 || []).length > 12) {
-      hsec.appendChild(el('div', { class: 'op-note', text: '…and ' + (d.headings.h2.length - 12) + ' more H2s' }));
+    // Full outline in document order, indented by level, skipped levels flagged.
+    var outline = d.headingOutline || [];
+    if (!outline.length) {
+      hsec.appendChild(el('div', { class: 'op-note', text: 'No headings found on this page.' }));
+    } else {
+      var tree = el('div', { class: 'hd-tree' });
+      outline.forEach(function (h) {
+        var row = el('div', { class: 'hd-row' + (h.skipped ? ' skipped' : ''), style: 'padding-left:' + ((h.level - 1) * 16) + 'px;' }, [
+          el('span', { class: 'hd-tag l' + h.level, text: 'H' + h.level }),
+          el('span', { class: 'hd-text', text: h.text })
+        ]);
+        tree.appendChild(row);
+        if (h.skipped) tree.appendChild(el('div', { class: 'op-note warn', style: 'padding-left:' + ((h.level - 1) * 16) + 'px;',
+          text: '⚠ level skipped (jumps to H' + h.level + ')' }));
+      });
+      hsec.appendChild(tree);
     }
     wrap.appendChild(hsec);
 
@@ -323,29 +329,48 @@
     }
 
     var jl = sd.jsonLd || {};
-    // JSON-LD blocks — each with its type(s), property count, and warnings.
+    // JSON-LD blocks — each with its type(s), warnings, and a DOWNLOAD icon that
+    // saves that block's raw JSON as a .json file.
     if (jl.blockCount) {
       sec.appendChild(el('div', { class: 'op-title', style: 'margin-top:8px;',
-        text: 'JSON-LD · ' + jl.itemCount + ' item(s)' + (jl.invalid ? ' · ' + jl.invalid + ' invalid' : '') }));
-      (jl.blocks || []).forEach(function (b) {
-        var card = el('div', { class: 'sd-item' + (b.invalid || (b.warnings && b.warnings.length) ? ' warn' : '') });
-        var head = el('div', { class: 'sd-head' }, [
-          el('span', { class: 'sd-type', text: b.invalid ? '⚠ invalid block' : (b.types.join(', ') || '(no @type)') }),
-          b.invalid ? null : el('span', { class: 'sd-count', text: (b.propCount || 0) + ' props' })
-        ]);
-        card.appendChild(head);
-        if (!b.invalid && b.props && b.props.length) {
-          card.appendChild(el('div', { class: 'sd-props', text: b.props.join(' · ') +
-            (b.propCount > b.props.length ? ' …' : '') }));
-        }
+        text: 'JSON-LD · ' + (jl.blockCount || 0) + ' block(s)' + (jl.invalid ? ' · ' + jl.invalid + ' invalid' : '') }));
+      (jl.scripts || []).forEach(function (b, i) {
+        var bad = !b.valid || (b.warnings && b.warnings.length);
+        var card = el('div', { class: 'sd-item' + (bad ? ' warn' : '') });
+        var typeLabel = !b.valid ? '⚠ invalid block' : (b.types.join(', ') || '(no @type)');
+        var dl = el('button', {
+          class: 'sd-dl', title: 'Download this schema block (.json)',
+          'aria-label': 'Download schema block'
+        });
+        dl.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="M7 11l5 5 5-5"></path><path d="M4 21h16"></path></svg>';
+        (function (block, idx) {
+          dl.addEventListener('click', function () {
+            var text = block.valid && block.pretty ? block.pretty : block.raw;
+            var name = 'schema-' + (block.types[0] || 'block') + '-' + (idx + 1) + '.json';
+            window.SEO_CSV.downloadText(name.replace(/[^\w.\-]+/g, '_'), text, 'application/json');
+          });
+        })(b, i);
+        card.appendChild(el('div', { class: 'sd-head' }, [
+          el('span', { class: 'sd-type', text: typeLabel }), dl
+        ]));
         (b.warnings || []).forEach(function (w) {
           card.appendChild(el('div', { class: 'sd-warn', text: '⚠ ' + w }));
         });
-        if (!b.invalid && (!b.warnings || !b.warnings.length)) {
-          card.appendChild(el('div', { class: 'sd-ok', text: '✓ has recommended properties' }));
+        if (b.valid && (!b.warnings || !b.warnings.length)) {
+          card.appendChild(el('div', { class: 'sd-ok', text: '✓ valid · has recommended properties' }));
         }
         sec.appendChild(card);
       });
+      // Export ALL schema blocks in one file.
+      if ((jl.scripts || []).length) {
+        sec.appendChild(miniBtn(ctx, 'Export all schema (.json)', function () {
+          var all = (jl.scripts || []).map(function (b, i) {
+            return '/* Block ' + (i + 1) + ' — ' + (b.types.join(', ') || 'n/a') + (b.valid ? '' : ' (INVALID)') + ' */\n' +
+              (b.valid && b.pretty ? b.pretty : b.raw);
+          }).join('\n\n');
+          window.SEO_CSV.downloadText('schema-all-' + hostOf(ctx) + '.json', all, 'application/json');
+        }));
+      }
     }
 
     // Microdata + RDFa summaries.
@@ -430,7 +455,7 @@
     rows.push(['RDFa types', ((sd.rdfa && sd.rdfa.types) || []).join(' | ')]);
     // Schema validation warnings (missing recommended properties, invalid JSON).
     var sdWarn = [];
-    ((sd.jsonLd && sd.jsonLd.blocks) || []).forEach(function (b) {
+    ((sd.jsonLd && sd.jsonLd.scripts) || []).forEach(function (b) {
       (b.warnings || []).forEach(function (w) { sdWarn.push(w); });
     });
     rows.push(['Schema warnings', sdWarn.join(' | ')]);

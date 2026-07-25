@@ -1,15 +1,15 @@
 # SEO Sidekick — Free On-Page & SERP Toolkit
 
-The free **SEO Minion replacement**. Nine daily SEO checks in one toolbar icon:
-broken links, on-page element analysis with word count, PageSpeed score, hreflang
-validation, dofollow/nofollow highlighting, SERP location spoofing, and live
-pixel-width title/meta preview.
+The free **SEO Minion replacement**. Eight daily SEO checks in one toolbar icon:
+broken links, on-page analysis with word count, AI/GEO readiness, PageSpeed
+score, technical indexability, hreflang validation, dofollow/nofollow
+highlighting, and a live pixel-width title/meta preview.
 
 **Zero account · zero paywall · zero sign-in.** Everything runs on your device.
 The only network requests the extension ever makes are ones *you* explicitly
-trigger: the link/hreflang checks, opening a Google search tab when you change
-SERP location, and — only if you click Run test on the Speed tab — a PageSpeed
-Insights lookup that sends the page URL to Google's API. No analytics, no
+trigger: the link/hreflang checks, the robots.txt / sitemap fetches on the AI/GEO
+and Tech tabs, and — on the Speed tab — a PageSpeed Insights lookup that sends the
+page URL to Google's API. No analytics, no
 telemetry, no remote config, no sign-in.
 
 ---
@@ -26,11 +26,12 @@ No build step. No npm. No bundler. It loads exactly as-is.
 
 ---
 
-## The nine modules
+## The eight modules
 
-Open the popup and switch between nine tabs. Tab switching is instant — results
-are cached in memory for the life of the popup session and never re-fetched on
-switch.
+Open the popup and switch between eight tabs. **Every tab runs automatically** —
+there are no "run" buttons: the moment you open a tab it analyzes the current
+page (the AI/GEO, Tech and Speed tabs run on first open and cache the result;
+each has a small ↻ Refresh to re-run). Tab switching is instant.
 
 **Open in a full tab.** The header has a **Full tab** button that reopens the
 entire toolkit as a full-width, easier-to-read browser tab (a roomy multi-column
@@ -79,8 +80,9 @@ SEO elements directly from the DOM and reports them at a glance:
   scripts count correctly and contractions/hyphenated terms count as one word.
 - **Title** and **meta description** with character lengths (color-coded against
   common length guidance).
-- **Headings** — H1–H6 counts in a grid, with the H1/H2 text listed and a warning
-  if there isn't exactly one H1.
+- **Headings outline** — the H1–H6 count grid **plus the full heading structure**
+  in document order, indented by level, so you can see the whole outline at a
+  glance. Flags a missing/duplicate H1 and any **skipped level** (e.g. H2 → H4).
 - **Links inventory** — total / unique / internal / external / nofollow counts,
   plus the **full list** of links (URL + anchor text) split into Internal /
   External tabs; links with no anchor text are flagged. Export **all links** or
@@ -99,7 +101,9 @@ SEO elements directly from the DOM and reports them at a glance:
   JSON-LD** blocks, and runs a light **validation** — warning when a common type
   is missing a recommended property (e.g. "Article is missing recommended
   property author", "Product is missing offers"). Nested items (`@graph`,
-  `mainEntity`, `itemListElement`, offers, etc.) are walked too.
+  `mainEntity`, `itemListElement`, offers, etc.) are walked too. **Each JSON-LD
+  block has a download icon** to save its raw JSON as a `.json` file, plus an
+  "Export all schema" button.
 - **Export CSV** writes every metric for the page, including the schema formats,
   types, item counts, and validation warnings.
 
@@ -201,34 +205,6 @@ page, and **live counts** (total / dofollow / nofollow / internal / external)
 update in the popup and legend as you scroll or the DOM changes
 (MutationObserver, debounced 400ms).
 
-### 4 · Location — SERP Location Changer
-Pick from **30 shipped locations** (countries + major cities) or type any custom
-location. Enter a query (auto-prefilled from the current Google SERP tab if you're
-on one) and click **Search as location** — a new tab opens Google's results for
-that location. On the results page a **"Viewing as: [Location]"** badge (Shadow
-DOM, top-right) appears whenever a location parameter is detected, so spoofed
-results are never mistaken for your real default location. Your **last 10**
-searches are saved and click-to-rerun.
-
-**uule vs gl/hl — what we ship and why.** Google supports several ways to bias
-search results toward a location:
-
-- **`gl` + `hl`** — country geolocation + interface/results language. Simple,
-  documented, and *always* changes results at the country level.
-- **`uule`** — a base64-style encoding of a *canonical location name* that can
-  reach city-level precision. Its construction is
-  `w+CAIQICI` + a single length character + a base64 encoding of the canonical
-  name (e.g. `"New York,New York,United States"`). Google honours it when the
-  canonical name matches its internal geo table, but it is undocumented and can be
-  silently ignored for names it doesn't recognize.
-
-**This extension ships BOTH.** Every search URL carries `uule` (built from the
-location's canonical name) *and* `gl`/`hl`, plus `pws=0` to reduce
-personalization. That way you get city-level precision when Google accepts the
-`uule`, and a guaranteed country/language shift from `gl`/`hl` as the reliable
-fallback — you always get a working location change, never a stub. See
-`shared/locations.js` for the builder and `DECISIONS.md` for the full rationale.
-
 ### 5 · Preview — Pixel-Width SERP Snippet Preview
 Auto-populates the current tab's `<title>` and `meta[name=description]`, both
 live-editable. As you type it renders a **pixel-accurate mock Google result card**
@@ -258,7 +234,6 @@ SEO Sidekick collects **nothing**. It has no account system, no server, no
 analytics, and makes **no** network request except:
 
 1. the link-check / hreflang-target fetches you explicitly trigger, and
-2. opening a Google search tab when you change SERP location.
 
 Permissions requested: `storage` (local history + preferences only), `activeTab`
 and `scripting` (to inject the on-demand tools when you click a button), and
@@ -286,9 +261,6 @@ reading the current query.
 4. **Module 3.** Toggle on → internal/external and dofollow/nofollow links are
    visually distinguishable by outline color + style, counts update live as you
    scroll → toggle off → the page looks identical to the original.
-5. **Module 4.** Pick a non-default location (e.g. "Tokyo, Japan") + a query →
-   Search as location → a new Google tab opens for that location and the
-   "Viewing as: Tokyo, Japan" badge appears on the results page.
 6. **Module 5.** Type a long title → the pixel bar goes amber then red at the
    correct truncation point, the mock card updates live and truncates with `…`,
    and the copy buttons work.
@@ -310,9 +282,7 @@ seo-sidekick/
 ├── manifest.json                 MV3 manifest (storage, activeTab, scripting, host_permissions)
 ├── background.js                 service worker — scripting-injection orchestration
 ├── content/
-│   ├── serp-adapter.js           Google SERP query/location-badge detection (2 strategies)
-│   ├── highlighter.js            Module 3 — link highlight styling + legend
-│   └── main.js                   content-script entry on SERP hosts
+│   └── highlighter.js            Module 3 — link highlight styling + legend (injected)
 ├── inject/
 │   ├── link-checker.js           Module 1 — self-contained injected function
 │   ├── hreflang-checker.js       Module 2 — self-contained injected function
@@ -321,12 +291,11 @@ seo-sidekick/
 │   └── snippet-reader.js         Module 5 — reads title/meta from active tab
 ├── popup/
 │   ├── popup.html / popup.css / popup.js   5-tab shell + router
-│   └── tabs/                     links.js, onpage.js, ai.js, tech.js, speed.js, hreflang.js, highlight.js, location.js, preview.js
+│   └── tabs/                     links.js, onpage.js, ai.js, tech.js, speed.js, hreflang.js, highlight.js preview.js
 ├── shared/
 │   ├── storage.js                chrome.storage.local promise wrapper + history
 │   ├── csv.js                    RFC-4180 CSV builder + download
 │   ├── iso-languages.js          full 184-entry ISO 639-1 list + validator
-│   ├── locations.js              30 locations + uule builder + search-URL builder
 │   └── pixel-measure.js          canvas measureText helpers
 ├── icons/                        16 / 32 / 48 / 128 PNGs
 ├── DECISIONS.md                  engineering decisions & defaults
@@ -337,34 +306,35 @@ seo-sidekick/
 
 ## Chrome Web Store listing draft
 
-**Title:** SEO Sidekick — Free On-Page & SERP Toolkit
+**Title:** SEO Sidekick — Free On-Page & AI SEO Toolkit
 
 **Summary (132 chars):**
-> Free, no account, no sign-in. Broken links, on-page analyzer, PageSpeed, hreflang, link highlighter, SERP location & snippet preview.
+> Free, no account. Broken links, on-page analyzer, AI/GEO readiness, PageSpeed, indexability, hreflang, link highlighter & snippet preview.
 
 **Description:**
-> **Free, no account, no sign-in — the SEO Minion replacement.**
+> **Free, no account, no sign-in.**
 >
-> SEO Sidekick puts seven daily on-page and SERP checks behind one toolbar icon,
-> with nothing to sign up for and no analytics. Everything runs locally in your
-> browser.
+> SEO Sidekick puts eight daily SEO checks behind one toolbar icon, with nothing
+> to sign up for and no analytics. Everything runs locally in your browser.
 >
 > • **Broken Link Checker** — scan up to 300 links from the background worker
 >   (real statuses for external links), redirect detection, sortable results, CSV.
-> • **On-Page Analyzer** — title, meta, headings, image alt, links, canonical,
->   schema, and a main-content word count that ignores nav/header/footer/sidebars.
+> • **On-Page Analyzer** — title, meta, full heading outline, link & image
+>   inventories, schema validation with per-block export, and a main-content word
+>   count that ignores nav/header/footer/sidebars.
+> • **AI / GEO Readiness** — AI-crawler access audit (GPTBot, ClaudeBot,
+>   PerplexityBot, Google-Extended…), an AI extractability score, keyword density
+>   and readability. Built for the AI-search era.
 > • **PageSpeed Insights** — Lighthouse score and Core Web Vitals (lab + real-user
 >   CrUX) for the current page, Mobile/Desktop, via Google's PSI API.
+> • **Technical & Indexability** — a "Will Google index this?" verdict from the
+>   X-Robots-Tag header + meta robots + canonical + robots.txt, plus a sitemap check.
 > • **Hreflang Validator** — real ISO 639-1 code validation, self-reference and
 >   duplicate detection, and return-tag reciprocity checks with plain-English fixes.
 > • **Dofollow/Nofollow Highlighter** — outline every link by follow status and
 >   internal/external scope, with live counts and a draggable legend.
-> • **SERP Location Changer** — search Google as any of 30 locations (or a custom
->   one) using uule + gl/hl, with a "Viewing as" badge and a rerun history.
 > • **Pixel-Width Snippet Preview** — pixel-accurate title/meta widths with
 >   desktop + mobile truncation points and a live Google-style preview card.
 >
-> No analytics. No telemetry. No sign-in. The only network requests are ones you
-> trigger — link/hreflang checks, opening a Google search, and (only if you click
-> Run test) a PageSpeed lookup that sends the page URL to Google. Built for SEO
-> professionals who lost their free on-page toolkit and want it back — for good.
+> No analytics. No telemetry. No sign-in. Built for SEO professionals who want a
+> fast, private on-page + AI-search toolkit — for free.
