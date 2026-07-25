@@ -117,7 +117,7 @@
     });
     // Also init highlight + location + speed so their state (toggle, history,
     // API key, target URL) is ready before the user opens the tab.
-    ['highlight', 'location', 'speed', 'ai'].forEach(function (n) {
+    ['highlight', 'location', 'speed', 'ai', 'tech'].forEach(function (n) {
       var mod = TABS[n];
       if (mod && !initialized[n] && typeof mod.init === 'function') {
         initialized[n] = true;
