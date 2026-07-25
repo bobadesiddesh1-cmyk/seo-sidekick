@@ -138,6 +138,25 @@ the default chosen is recorded here with a one-line rationale.
 - **Thumbnails** load directly in the popup (extension pages aren't CORS-limited
   for `<img>` display) with an onerror fallback that hides broken thumbnails.
 
+## Module 8 — AI Search / GEO readiness
+
+- **The intended differentiator.** Most free SEO extensions cover the same on-page
+  basics; few address AI search (AI Overviews, ChatGPT/Perplexity/Gemini). This
+  tab does, entirely on-device except for fetching the site's own `robots.txt` /
+  `llms.txt`.
+- **AI crawler access** parses `robots.txt` with real longest-match semantics
+  (`*`/`$` wildcards, most-specific UA group, Allow-wins ties, UA fallback to
+  `*`) and reports allow/block per AI crawler for the *current path*, plus an
+  `llms.txt` presence check.
+- **Extractability score** is a weighted heuristic over signals LLMs actually
+  reward (question headings, lists/tables, TL;DR, FAQ/HowTo schema, author/date,
+  citations, stats, short paragraphs). It's directional guidance, not a guarantee
+  of being cited — the ranking systems are opaque.
+- **Keyword density + readability** run on the extracted *main content* (reusing
+  the Module 6 content-root logic), so nav/boilerplate don't skew the terms.
+  Readability uses standard Flesch formulas with a heuristic syllable counter;
+  passive-voice detection is a rough regex, labelled "approx".
+
 ## Module 7 — PageSpeed Insights
 
 - **Uses Google's public PSI API (`pagespeedonline/v5`).** Building a Lighthouse

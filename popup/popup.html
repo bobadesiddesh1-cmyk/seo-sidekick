@@ -35,6 +35,12 @@
       </span>
       <span class="tab-label">On-Page</span>
     </button>
+    <button class="tab" data-tab="ai" role="tab" aria-selected="false" title="AI Search / GEO readiness">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"></path><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"></path></svg>
+      </span>
+      <span class="tab-label">AI/GEO</span>
+    </button>
     <button class="tab" data-tab="speed" role="tab" aria-selected="false" title="PageSpeed Insights">
       <span class="tab-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"></path><path d="M5.6 18.4a9 9 0 1 1 12.8 0"></path><circle cx="12" cy="14" r="1.4"></circle></svg>
@@ -95,6 +101,19 @@
       </div>
       <div id="onpage-status" class="status" role="status"></div>
       <div id="onpage-results" class="results"></div>
+    </section>
+
+    <!-- Module 8: AI/GEO -->
+    <section class="panel" data-panel="ai">
+      <div class="panel-head">
+        <h2>AI Search / GEO Readiness</h2>
+        <p class="muted">AI-crawler access, an extractability score for AI answers, keyword density & readability.</p>
+      </div>
+      <div class="row">
+        <button id="ai-run" class="btn btn-primary">Analyze AI readiness</button>
+      </div>
+      <div id="ai-status" class="status" role="status"></div>
+      <div id="ai-results" class="results"></div>
     </section>
 
     <!-- Module 7: PageSpeed -->
@@ -219,6 +238,7 @@
   <!-- tab modules -->
   <script src="tabs/links.js"></script>
   <script src="tabs/onpage.js"></script>
+  <script src="tabs/ai.js"></script>
   <script src="tabs/speed.js"></script>
   <script src="tabs/hreflang.js"></script>
   <script src="tabs/highlight.js"></script>

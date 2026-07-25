@@ -15,6 +15,8 @@
  *   'check-hreflang'  -> Module 2  (inject/hreflang-checker.js)
  *   'read-snippet'    -> Module 5  (inject/snippet-reader.js)
  *   'analyze-onpage'  -> Module 6  (inject/onpage-analyzer.js)
+ *   'analyze-content' -> Module 8  (inject/content-analyzer.js) — GEO + content intel
+ *   'fetch-resource'  -> network fetch (robots.txt/llms.txt/sitemap/headers), no tab
  *   'highlight'       -> Module 3  (content/highlighter.js) action: on|off|toggle|counts|state
  */
 'use strict';
@@ -24,6 +26,7 @@ function callCollectLinks() { return self.__SEO_collectLinks(); }
 function callHreflangChecker() { return self.__SEO_runHreflangChecker(); }
 function callSnippetReader() { return self.__SEO_readSnippet(); }
 function callOnpageAnalyzer() { return self.__SEO_runOnpageAnalyzer(); }
+function callContentAnalyzer() { return self.__SEO_runContentAnalyzer(); }
 function callHighlightEnable() { return self.__SEO_highlighter.enable(); }
 function callHighlightDisable() { return self.__SEO_highlighter.disable(); }
 function callHighlightToggle() { return self.__SEO_highlighter.toggle(); }
@@ -42,6 +45,36 @@ async function callInPage(tabId, fn) {
 async function getActiveTab() {
   var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   return tabs && tabs[0] ? tabs[0] : null;
+}
+
+// Fetch an arbitrary resource (robots.txt, llms.txt, sitemap, the page itself)
+// from the worker — host_permissions bypass CORS so we can read status, headers
+// and body. Used by the AI and Tech tabs. 15s timeout; never throws.
+async function fetchResource(url, method) {
+  var controller = new AbortController();
+  var t = setTimeout(function () { controller.abort(); }, 15000);
+  try {
+    var resp = await fetch(url, {
+      method: method || 'GET', redirect: 'follow',
+      credentials: 'omit', signal: controller.signal
+    });
+    clearTimeout(t);
+    var headers = {};
+    try { resp.headers.forEach(function (v, k) { headers[k.toLowerCase()] = v; }); } catch (e) {}
+    var body = '';
+    if ((method || 'GET') !== 'HEAD') {
+      try { body = await resp.text(); } catch (e) { body = ''; }
+    }
+    return {
+      ok: resp.ok, status: resp.status, headers: headers,
+      finalUrl: resp.url || url, redirected: !!resp.redirected,
+      body: body.length > 600000 ? body.slice(0, 600000) : body
+    };
+  } catch (e) {
+    clearTimeout(t);
+    return { ok: false, status: 0, headers: {}, finalUrl: url, redirected: false,
+      body: '', error: (e && e.name === 'AbortError') ? 'timeout' : 'unreachable' };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -181,6 +214,13 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
 
   (async function () {
     try {
+      // Network-only messages: no tab injection needed.
+      if (msg.type === 'fetch-resource') {
+        var r = await fetchResource(msg.url, msg.method);
+        sendResponse({ ok: true, data: r });
+        return;
+      }
+
       var tab = (msg.tabId ? { id: msg.tabId, url: msg.tabUrl } : await getActiveTab());
       if (!tab || !tab.id) { sendResponse({ ok: false, error: 'No active tab.' }); return; }
       if (!canInject(tab)) {
@@ -226,6 +266,12 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
           await injectFile(tab.id, 'inject/onpage-analyzer.js');
           var onpage = await callInPage(tab.id, callOnpageAnalyzer);
           sendResponse({ ok: true, data: onpage });
+          return;
+        }
+        case 'analyze-content': {
+          await injectFile(tab.id, 'inject/content-analyzer.js');
+          var content = await callInPage(tab.id, callContentAnalyzer);
+          sendResponse({ ok: true, data: content });
           return;
         }
         case 'highlight': {
