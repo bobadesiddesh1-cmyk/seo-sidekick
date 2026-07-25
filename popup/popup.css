@@ -42,17 +42,49 @@
 
 * { box-sizing: border-box; }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 420px;
+html {
+  margin: 0; padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+body {
+  margin: 0; padding: 0;
+  width: 440px;               /* small-popup width */
+  min-height: 320px;
   font-size: 13px;
   color: var(--fg);
   background: var(--bg);
 }
 
-body { min-height: 320px; }
+/* ---- Full-tab (expanded) view ---- */
+body.fullpage {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  min-height: 100vh;
+  font-size: 14px;
+  box-shadow: 0 0 0 1px var(--border);
+}
+body.fullpage .app-header { padding: 16px 28px 14px; }
+body.fullpage .tabs { padding: 8px 24px; }
+body.fullpage .tab { font-size: 12px; padding: 9px 6px; }
+body.fullpage .panels { padding: 20px 28px 12px; max-width: 100%; }
+body.fullpage .panel-head h2 { font-size: 18px; }
+body.fullpage .results { font-size: 13.5px; }
+body.fullpage .inv-list { max-height: none; }         /* show the whole list */
+body.fullpage .url-cell, body.fullpage .anchor-cell { max-width: none; }
+body.fullpage .tbl { font-size: 13px; }
+/* Roomy multi-column layout for the dense analysis tabs. */
+body.fullpage .panel[data-panel="onpage"] .results,
+body.fullpage .panel[data-panel="ai"] .results,
+body.fullpage .panel[data-panel="tech"] .results {
+  column-width: 460px; column-gap: 24px;
+}
+body.fullpage .op-section, body.fullpage .op-wordcard, body.fullpage .psi-scorecard,
+body.fullpage .verdict, body.fullpage .hf-card, body.fullpage .sd-item {
+  break-inside: avoid;
+}
 
 /* Header */
 .app-header {
@@ -67,6 +99,15 @@ body { min-height: 320px; }
   width: 32px; height: 32px; border-radius: 9px;
   background: rgba(255, 255, 255, .18); color: #fff;
 }
+.expand-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255, 255, 255, .18); color: #fff;
+  border: 1px solid rgba(255, 255, 255, .35); border-radius: 8px;
+  padding: 6px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  transition: background .12s;
+}
+.expand-btn:hover { background: rgba(255, 255, 255, .28); }
+.expand-btn span { white-space: nowrap; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-text strong { font-size: 15px; letter-spacing: .2px; }
 .brand-text small { font-size: 10.5px; opacity: .9; margin-top: 2px; }
