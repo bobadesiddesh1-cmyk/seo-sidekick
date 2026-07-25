@@ -1,6 +1,6 @@
 # SEO Sidekick — Free On-Page & SERP Toolkit
 
-The free **SEO Minion replacement**. Seven daily SEO checks in one toolbar icon:
+The free **SEO Minion replacement**. Eight daily SEO checks in one toolbar icon:
 broken links, on-page element analysis with word count, PageSpeed score, hreflang
 validation, dofollow/nofollow highlighting, SERP location spoofing, and live
 pixel-width title/meta preview.
@@ -26,9 +26,9 @@ No build step. No npm. No bundler. It loads exactly as-is.
 
 ---
 
-## The seven modules
+## The eight modules
 
-Open the popup and switch between seven tabs. Tab switching is instant — results
+Open the popup and switch between eight tabs. Tab switching is instant — results
 are cached in memory for the life of the popup session and never re-fetched on
 switch.
 
@@ -96,6 +96,28 @@ SEO elements directly from the DOM and reports them at a glance:
   `mainEntity`, `itemListElement`, offers, etc.) are walked too.
 - **Export CSV** writes every metric for the page, including the schema formats,
   types, item counts, and validation warnings.
+
+### 8 · AI/GEO — AI Search / GEO Readiness
+Click **Analyze AI readiness** — the differentiator tab for the AI-search era.
+No account, still on-device (the only network call is fetching the site's own
+`robots.txt`/`llms.txt`).
+
+- **AI crawler access** — reads `robots.txt` and reports, for the current path,
+  whether each major AI crawler is **allowed or blocked**: `GPTBot`,
+  `OAI-SearchBot`, `ChatGPT-User`, `ClaudeBot`, `Claude-Web`, `PerplexityBot`,
+  `Google-Extended`, `Applebot-Extended`, `CCBot`, `Bytespider`, `Amazonbot`,
+  `Meta-ExternalAgent` — plus whether an **`llms.txt`** file exists. (Full
+  longest-match robots semantics with `*`/`$` wildcards and UA-group fallback.)
+- **AI extractability score** (0–100 + letter grade) — how quotable the page is
+  for AI answers: answer-first structure, **question-style headings**, lists/
+  tables, a **TL;DR/summary**, **FAQ/HowTo schema**, author + dates (E-E-A-T),
+  outbound citations, concrete stats, and short paragraphs. Each missing signal
+  comes with a one-line fix.
+- **Keyword density** — top words and **2- and 3-word phrases** (stopword-filtered)
+  from the **main content**, with density %, and whether your top term appears in
+  the title / H1 / meta.
+- **Readability** — Flesch reading ease + grade level, average sentence length,
+  and an approximate passive-voice count.
 
 ### 7 · Speed — PageSpeed Insights
 Click **Run test** to fetch a Lighthouse report for the current page from
@@ -273,10 +295,11 @@ seo-sidekick/
 │   ├── link-checker.js           Module 1 — self-contained injected function
 │   ├── hreflang-checker.js       Module 2 — self-contained injected function
 │   ├── onpage-analyzer.js        Module 6 — on-page elements + word count
+│   ├── content-analyzer.js       Module 8 — GEO extractability + keyword density + readability
 │   └── snippet-reader.js         Module 5 — reads title/meta from active tab
 ├── popup/
 │   ├── popup.html / popup.css / popup.js   5-tab shell + router
-│   └── tabs/                     links.js, onpage.js, speed.js, hreflang.js, highlight.js, location.js, preview.js
+│   └── tabs/                     links.js, onpage.js, ai.js, speed.js, hreflang.js, highlight.js, location.js, preview.js
 ├── shared/
 │   ├── storage.js                chrome.storage.local promise wrapper + history
 │   ├── csv.js                    RFC-4180 CSV builder + download

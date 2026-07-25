@@ -73,19 +73,19 @@ body { min-height: 320px; }
 
 /* Tabs */
 .tabs {
-  display: flex; gap: 2px;
-  padding: 6px 8px;
+  display: flex; flex-wrap: wrap; gap: 2px;
+  padding: 6px 6px;
   background: var(--bg-soft);
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 5;
 }
 .tab {
-  flex: 1;
+  flex: 1 0 auto; min-width: 46px;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 7px 2px 6px;
+  padding: 6px 2px 5px;
   border: none; background: transparent; cursor: pointer;
   color: var(--fg-soft); border-radius: 8px;
-  font-size: 10.5px; font-weight: 600;
+  font-size: 10px; font-weight: 600;
   transition: background .12s, color .12s;
 }
 .tab .tab-ico { display: inline-flex; }
@@ -285,6 +285,22 @@ body { min-height: 320px; }
 .op-hitem { font-size: 11px; color: var(--fg); margin-top: 5px; display: flex; align-items: baseline; gap: 5px; word-break: break-word; }
 .op-note { font-size: 10.5px; margin-top: 6px; color: var(--fg-soft); }
 .op-note.bad { color: var(--bad); } .op-note.warn { color: var(--warn); } .op-note.ok { color: var(--ok); } .op-note.int { color: var(--fg-soft); }
+
+/* AI / GEO tab */
+.ai-sig { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+.ai-sig-ico { font-weight: 800; width: 14px; text-align: center; }
+.ai-sig-ico.c-ok { color: var(--ok); } .ai-sig-ico.c-bad { color: var(--bad); }
+.ai-sig-lbl { flex: 1; color: var(--fg); }
+.ai-sig-pts { font-size: 10px; color: var(--fg-soft); }
+.ai-hint { font-size: 10.5px; color: var(--warn); margin: 0 0 4px 22px; }
+.ai-bots { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; }
+.ai-bot { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.ai-bot-name { color: var(--fg); }
+.kw-box { margin-top: 8px; }
+.kw-title { font-size: 10.5px; font-weight: 700; color: var(--fg-soft); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 3px; }
+.kw-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; padding: 2px 0; border-bottom: 1px solid var(--border); }
+.kw-term { color: var(--fg); word-break: break-word; }
+.kw-count { color: var(--fg-soft); white-space: nowrap; }
 
 /* Inventory lists (links / images) */
 .mini-btn { padding: 6px 9px; font-size: 11px; }
