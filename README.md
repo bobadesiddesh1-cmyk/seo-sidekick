@@ -32,6 +32,12 @@ Open the popup and switch between nine tabs. Tab switching is instant — result
 are cached in memory for the life of the popup session and never re-fetched on
 switch.
 
+**Open in a full tab.** The header has a **Full tab** button that reopens the
+entire toolkit as a full-width, easier-to-read browser tab (a roomy multi-column
+layout for the data-heavy tabs — link/image inventories, schema, AI/GEO, Tech).
+It stays pointed at the page you were analyzing (the target tab is passed along),
+so every scan still runs against that page, not the extension's own tab.
+
 ### 1 · Links — Broken Link Checker
 Click **Scan this page for broken links**. The extension collects every
 same-document `<a href>` (relative URLs resolved, duplicates removed, and
