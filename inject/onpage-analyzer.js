@@ -79,19 +79,24 @@
 
     // ---- headings -----------------------------------------------------------
     var headings = { h1: [], h2: [], h3: [], h4: [], h5: [], h6: [] };
-    ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach(function (tag) {
-      qa(tag).forEach(function (el) {
-        if (!visible(el)) return;
-        var t = text(el);
-        if (t) headings[tag].push(t.length > 90 ? t.slice(0, 89) + '…' : t);
-      });
+    var headingOutline = [];   // ALL headings in document order, with level.
+    var headingWordTotal = 0;
+    var prevLevel = 0;
+    qa('h1, h2, h3, h4, h5, h6').forEach(function (el) {
+      if (!visible(el)) return;
+      var lvl = parseInt(el.tagName.charAt(1), 10);
+      var t = text(el);
+      if (!t) return;
+      var trimmed = t.length > 140 ? t.slice(0, 139) + '…' : t;
+      headings['h' + lvl].push(trimmed.length > 90 ? trimmed.slice(0, 89) + '…' : trimmed);
+      headingWordTotal += countWords(t);
+      // Flag a skipped level (e.g. H2 -> H4) — an outline/accessibility issue.
+      var skipped = prevLevel > 0 && lvl > prevLevel + 1;
+      headingOutline.push({ level: lvl, text: trimmed, skipped: skipped });
+      prevLevel = lvl;
     });
     var headingCounts = {};
-    var headingWordTotal = 0;
-    Object.keys(headings).forEach(function (k) {
-      headingCounts[k] = headings[k].length;
-      headings[k].forEach(function (t) { headingWordTotal += countWords(t); });
-    });
+    Object.keys(headings).forEach(function (k) { headingCounts[k] = headings[k].length; });
 
     // ---- images (counts + full inventory) ----------------------------------
     var IMG_CAP = 400;
@@ -259,18 +264,33 @@
       });
     }
 
+    // One record per <script> block, each carrying its raw JSON so the UI can
+    // offer a per-block download, plus the types/warnings found inside it.
+    var jsonLdScripts = [];
+    function cap(str, n) { return str.length > n ? str.slice(0, n) + '\n… (truncated)' : str; }
     qa('script[type="application/ld+json"]').forEach(function (s) {
-      var raw = s.textContent || '';
-      if (!raw.trim()) return;
+      var raw = (s.textContent || '').trim();
+      if (!raw) return;
       var data;
       try { data = JSON.parse(raw); }
       catch (e) {
         jsonLdInvalid++;
-        jsonLdBlocks.push({ types: [], props: [], propCount: 0,
-          warnings: ['Invalid JSON — this JSON-LD block does not parse'], invalid: true });
+        jsonLdScripts.push({ raw: cap(raw, 60000), pretty: '', valid: false,
+          types: [], warnings: ['Invalid JSON — this block does not parse'] });
         return;
       }
+      var before = jsonLdBlocks.length;
       (Array.isArray(data) ? data : [data]).forEach(inspectItem);
+      var added = jsonLdBlocks.slice(before);
+      var sTypes = [], sWarn = [];
+      added.forEach(function (b) {
+        pushUnique(sTypes, b.types);
+        b.warnings.forEach(function (w) { if (sWarn.indexOf(w) === -1) sWarn.push(w); });
+      });
+      var pretty = raw;
+      try { pretty = JSON.stringify(data, null, 2); } catch (e) {}
+      jsonLdScripts.push({ raw: cap(raw, 60000), pretty: cap(pretty, 60000),
+        valid: true, types: sTypes, warnings: sWarn });
     });
 
     // --- Microdata: itemscope / itemtype.
@@ -299,10 +319,10 @@
       formats: formats,
       jsonLd: {
         itemCount: jsonLdItemCount,
-        blockCount: jsonLdBlocks.length,
+        blockCount: jsonLdScripts.length,
         invalid: jsonLdInvalid,
         types: jsonLdAllTypes,
-        blocks: jsonLdBlocks
+        scripts: jsonLdScripts
       },
       microdata: { count: microItems.length, types: microTypes },
       rdfa: { count: rdfaNodes.length, types: rdfaTypes }
@@ -447,6 +467,7 @@
       lang: htmlLang,
       headings: headings,
       headingCounts: headingCounts,
+      headingOutline: headingOutline,
       images: {
         total: imgs.length, missingAlt: imgMissingAlt, emptyAlt: imgEmptyAlt,
         withAlt: imgWithAlt, withoutTitle: imgWithoutTitle,

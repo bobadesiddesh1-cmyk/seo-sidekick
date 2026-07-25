@@ -21,8 +21,8 @@
 
   function init(ctx) {
     state.ctx = ctx;
-    ctx.qs('#tech-run').addEventListener('click', function () { run(ctx); });
     if (state.data) render(ctx, state.data);
+    else run(ctx);
   }
 
   function activeUrl(ctx) { return ctx.activeTab && ctx.activeTab.url ? ctx.activeTab.url : ''; }
@@ -36,7 +36,6 @@
     try { var u = new URL(url); origin = u.origin; path = u.pathname || '/'; } catch (e) {}
 
     state.running = true;
-    ctx.qs('#tech-run').disabled = true;
     setStatus(ctx, 'Fetching headers, robots.txt & sitemap', false);
     ctx.qs('#tech-results').innerHTML = '';
 
@@ -61,7 +60,6 @@
     var sitemap = sitemapRes && sitemapRes.ok ? sitemapRes.data : null;
 
     state.running = false;
-    ctx.qs('#tech-run').disabled = false;
     setStatus(ctx, '', false);
     state.data = { url: url, path: path, onpage: onpage, headers: headers, robots: robots, sitemap: sitemap, sitemapUrl: sitemapUrl };
     render(ctx, state.data);
@@ -122,6 +120,10 @@
     var el = ctx.el, esc = ctx.escapeHtml;
     var wrap = ctx.qs('#tech-results');
     wrap.innerHTML = '';
+
+    var refresh = el('button', { class: 'btn btn-ghost mini-btn', text: '↻ Refresh' });
+    refresh.addEventListener('click', function () { run(ctx); });
+    wrap.appendChild(el('div', { class: 'row', style: 'margin:0 0 8px;' }, [refresh]));
 
     var h = d.headers || {};
     var hdr = h.headers || {};

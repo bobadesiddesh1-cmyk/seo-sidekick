@@ -32,7 +32,6 @@
       });
     } catch (e) { /* ignore */ }
 
-    ctx.qs('#speed-run').addEventListener('click', function () { run(ctx); });
     ctx.qsa('.speed-strat').forEach(function (b) {
       b.addEventListener('click', function () { setStrategy(ctx, b.getAttribute('data-strat')); });
     });
@@ -42,8 +41,10 @@
       try { window.SEO_STORE.set('psi_api_key', state.apiKey); } catch (e) {}
     });
 
-    setStrategy(ctx, state.strategy);
+    setStrategy(ctx, state.strategy, true); // set active state without running
     showTarget(ctx);
+    // Auto-run on first open (no click-to-run button), if it's a testable URL.
+    if (!state.dataByStrategy[state.strategy] && isPublicHttp(activeUrl(ctx))) run(ctx);
   }
 
   function activeUrl(ctx) {
@@ -64,24 +65,23 @@
   function showTarget(ctx) {
     var url = activeUrl(ctx);
     var note = ctx.qs('#speed-target');
-    var runBtn = ctx.qs('#speed-run');
-    if (!url) { note.textContent = 'No active tab.'; runBtn.disabled = true; return; }
+    if (!note) return;
+    if (!url) { note.textContent = 'No active tab.'; return; }
     if (!isPublicHttp(url)) {
       note.textContent = 'PageSpeed can only test a public http(s) URL (not local, private, or browser pages).';
-      runBtn.disabled = true;
       return;
     }
-    note.textContent = 'Will test: ' + url;
-    runBtn.disabled = false;
+    note.textContent = 'Testing: ' + url;
   }
 
-  function setStrategy(ctx, strat) {
+  function setStrategy(ctx, strat, noRun) {
     state.strategy = (strat === 'desktop') ? 'desktop' : 'mobile';
     ctx.qsa('.speed-strat').forEach(function (b) {
       b.classList.toggle('active', b.getAttribute('data-strat') === state.strategy);
     });
-    // If we already have a result for this strategy, show it; else clear.
+    // Show cached result for this strategy, else auto-run it.
     if (state.dataByStrategy[state.strategy]) render(ctx, state.dataByStrategy[state.strategy]);
+    else if (!noRun && isPublicHttp(activeUrl(ctx))) run(ctx);
     else ctx.qs('#speed-results').innerHTML = '';
   }
 
@@ -100,8 +100,6 @@
 
     state.running = true;
     var status = ctx.qs('#speed-status');
-    var runBtn = ctx.qs('#speed-run');
-    runBtn.disabled = true;
     status.className = 'status busy';
     status.textContent = 'Running PageSpeed test (' + state.strategy + ') — this can take up to a minute';
     ctx.qs('#speed-results').innerHTML = '';
@@ -122,7 +120,7 @@
         } else {
           status.textContent = 'PageSpeed error: ' + msg;
         }
-        state.running = false; runBtn.disabled = false;
+        state.running = false;
         return;
       }
       status.className = 'status';
@@ -136,7 +134,6 @@
         : 'Could not reach the PageSpeed API. Check your connection and try again.';
     }
     state.running = false;
-    runBtn.disabled = false;
   }
 
   // ---- rendering ----------------------------------------------------------

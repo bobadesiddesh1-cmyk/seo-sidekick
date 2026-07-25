@@ -50,7 +50,25 @@
     }
   }
 
-  var api = { toCsv: toCsv, download: download, escapeField: escapeField };
+  /**
+   * Generic text/blob download (JSON, TXT, etc.).
+   */
+  function downloadText(filename, text, mime) {
+    try {
+      var blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'download.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  var api = { toCsv: toCsv, download: download, downloadText: downloadText, escapeField: escapeField };
   root.SEO_CSV = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));

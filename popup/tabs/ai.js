@@ -34,21 +34,22 @@
 
   function init(ctx) {
     state.ctx = ctx;
-    ctx.qs('#ai-run').addEventListener('click', function () { run(ctx); });
+    // Auto-run on first open (like the other tools); no click-to-run button.
     if (state.data) render(ctx, state.data);
+    else run(ctx);
   }
 
   function activeUrl(ctx) { return ctx.activeTab && ctx.activeTab.url ? ctx.activeTab.url : ''; }
 
-  async function run(ctx) {
+  async function run(ctx, force) {
     if (state.running) return;
+    if (state.data && !force) { render(ctx, state.data); return; }
     var url = activeUrl(ctx);
     if (!/^https?:\/\//i.test(url)) {
       setStatus(ctx, 'Open a normal website tab to analyze.', true); return;
     }
     state.running = true;
     setStatus(ctx, 'Analyzing AI readiness', false);
-    ctx.qs('#ai-run').disabled = true;
     ctx.qs('#ai-results').innerHTML = '';
 
     var origin = '';
@@ -62,7 +63,6 @@
     ]);
 
     state.running = false;
-    ctx.qs('#ai-run').disabled = false;
 
     var content = results[0] && results[0].ok ? results[0].data : null;
     var robots = results[1] && results[1].ok ? results[1].data : null;
@@ -138,6 +138,12 @@
     var el = ctx.el, esc = ctx.escapeHtml;
     var wrap = ctx.qs('#ai-results');
     wrap.innerHTML = '';
+
+    // Toolbar: refresh + export.
+    wrap.appendChild(el('div', { class: 'row', style: 'margin:0 0 8px;' }, [
+      miniBtn(ctx, '↻ Refresh', function () { run(ctx, true); }),
+      miniBtn(ctx, 'Export report', function () { exportReport(ctx, d); })
+    ]));
 
     // ---- Extractability score ----
     var c = d.content;
@@ -241,6 +247,42 @@
     row.appendChild(ctx.el('span', { class: 'op-k', text: k }));
     row.appendChild(ctx.el('span', { class: 'op-v ' + (color ? 'c-' + color : ''), text: v }));
     return row;
+  }
+  function miniBtn(ctx, label, onClick) {
+    var b = ctx.el('button', { class: 'btn btn-ghost mini-btn', text: label });
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  function exportReport(ctx, d) {
+    var c = d.content || {}, ex = c.extractability || {}, kw = c.keywords || {}, r = c.readability || {};
+    var L = [];
+    L.push('SEO Sidekick — AI Search / GEO Readiness');
+    L.push('URL: ' + (d.url || ''));
+    L.push('Generated: ' + new Date().toString());
+    L.push('');
+    L.push('AI EXTRACTABILITY SCORE: ' + (ex.score != null ? ex.score : '—') + '/100  (grade ' + (ex.grade || '-') + ')');
+    (ex.signals || []).forEach(function (s) { L.push('  [' + (s.ok ? 'x' : ' ') + '] ' + s.label + (s.ok ? '' : '  → ' + (s.hint || ''))); });
+    L.push('');
+    L.push('AI CRAWLER ACCESS (robots.txt for ' + (d.path || '/') + ')');
+    if (d.robots && d.robots.status === 404) L.push('  No robots.txt — all AI crawlers allowed by default.');
+    else if (d.robots && d.robots.body) {
+      var groups = parseRobots(d.robots.body);
+      AI_BOTS.forEach(function (b) { L.push('  ' + (robotsAllows(groups, b[0], d.path).allowed ? 'ALLOWED ' : 'BLOCKED ') + b[0] + '  (' + b[1] + ')'); });
+    }
+    L.push('  llms.txt: ' + (d.llms && d.llms.status >= 200 && d.llms.status < 400 ? 'present' : 'not found'));
+    L.push('');
+    L.push('KEYWORD DENSITY (main content · ' + (c.contentWords || 0) + ' words)');
+    (kw.unigrams || []).forEach(function (u) { L.push('  ' + u.term + '  ' + u.count + '×  ' + u.density + '%'); });
+    L.push('  -- phrases --');
+    (kw.bigrams || []).concat(kw.trigrams || []).forEach(function (u) { L.push('  ' + u.term + '  ' + u.count + '×  ' + u.density + '%'); });
+    L.push('');
+    L.push('READABILITY');
+    L.push('  Flesch reading ease: ' + r.flesch + ' (' + r.fleschLabel + ')');
+    L.push('  Grade level: ' + r.grade);
+    L.push('  Avg sentence length: ' + r.avgSentenceWords + ' words');
+    L.push('  Passive voice (approx): ' + r.passiveApprox);
+    var host = 'page'; try { host = new URL(d.url).hostname; } catch (e) {}
+    window.SEO_CSV.downloadText('seo-sidekick-aeo-' + host + '.txt', L.join('\n'), 'text/plain');
   }
   function tick(ok) { return ok ? '<span style="color:var(--ok)">✓</span>' : '<span style="color:var(--bad)">✗</span>'; }
   function gradeColor(pct) { return pct >= 65 ? 'ok' : pct >= 40 ? 'warn' : 'bad'; }

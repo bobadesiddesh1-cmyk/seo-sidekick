@@ -12,11 +12,9 @@ the default chosen is recorded here with a one-line rationale.
   They are injected via `chrome.scripting.executeScript` scoped to `activeTab`.
   This keeps the extension quiet on every page you visit and minimizes the
   permission surface.
-- **Persistent content script only on Google SERP hosts** (`www.google.com/search*`,
-  `www.google.co.in/search*`). This is required for Module 4's live badge and
-  query detection. Other Google TLDs are handled gracefully by the adapter when
-  a location parameter is present, but only the two registered hosts get the
-  auto-injected content script (MV3 requires hosts be declared in the manifest).
+- **No persistent content scripts.** Every module injects on demand via
+  `chrome.scripting`; the highlighter is injected when toggled. (The SERP Location
+  feature and its content scripts were removed in v1.8.)
 
 ## Module 1 — Broken Link Checker
 
@@ -60,20 +58,6 @@ the default chosen is recorded here with a one-line rationale.
 - **MutationObserver debounced at 400ms** to refresh counts and re-tag new links
   without thrashing on dynamic pages.
 
-## Module 4 — SERP Location Changer
-
-- **Chosen mechanism: `gl` + `hl` + `uule`.** We ship BOTH. We build a correct
-  `uule` parameter (base64 of the canonical-name string, Google's documented
-  `w+CAIQICI<lenchar><canonical name>` construction) AND append `gl`/`hl`. `uule`
-  gives city-level precision when Google honours it; `gl`/`hl` is the reliable
-  country/language fallback that always changes results. Shipping both maximizes
-  the chance the SERP actually reflects the chosen location. See README for the
-  full uule construction explanation.
-- **30 shipped locations** (`shared/locations.js`): a mix of countries and major
-  cities across continents, each with `canonical` (for uule), `gl`, `hl`, and a
-  human label. A free-text custom-location input builds a uule on the fly.
-- **History = last 10** location searches (query + location), stored in
-  `chrome.storage.local`, click-to-rerun.
 
 ## Module 5 — Pixel-Width SERP Snippet Preview
 
@@ -203,3 +187,24 @@ the default chosen is recorded here with a one-line rationale.
   regex `<loc>` extractor. Sitemap-index files are detected and reported (we don't
   recursively fetch every child to keep it fast); page-presence is checked for a
   flat URL set with URL normalization (hash/trailing-slash-insensitive).
+
+## v1.8 — UX changes (auto-run, headings outline, schema export, no Location)
+
+- **Every tab auto-runs; the "Run"/"Analyze" buttons are gone.** DOM-only tabs
+  (On-Page, Hreflang, Preview) run on popup open; the network-backed tabs
+  (AI/GEO, Tech, Speed) lazy-init and auto-run on FIRST open of that tab and
+  cache the result for the session, so we never fire PageSpeed/robots fetches for
+  tabs the user doesn't visit. Each network tab has a small ↻ Refresh to re-run.
+- **Headings outline.** The analyzer now returns every heading in document order
+  with its level and a "skipped level" flag; the UI renders an indented outline
+  (not just per-level counts + first-few text).
+- **Per-schema export.** Each JSON-LD `<script>` block keeps its raw JSON in the
+  analyzer payload (capped at 60 KB) so the UI can offer a per-block `.json`
+  download plus an "export all schema" file. A generic `SEO_CSV.downloadText`
+  helper backs this and the AEO/GEO text-report export.
+- **Removed the SERP Location Changer** (tab + its content scripts + `shared/
+  locations.js`) as low-value. This also drops the only persistent content script
+  and the Google-search network path, tightening the privacy story.
+- **New icon** — a gradient rounded-square with ascending bars + an upward trend
+  arrow, rendered with Pillow (8× supersampled, LANCZOS) for crisp edges at all
+  sizes; replaces the plain magnifier placeholder.
