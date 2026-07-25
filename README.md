@@ -75,8 +75,14 @@ SEO elements directly from the DOM and reports them at a glance:
   common length guidance).
 - **Headings** — H1–H6 counts in a grid, with the H1/H2 text listed and a warning
   if there isn't exactly one H1.
-- **Images** — total, with-alt, missing `alt` attribute, and empty `alt`.
-- **Links** — total, internal, external, nofollow.
+- **Links inventory** — total / unique / internal / external / nofollow counts,
+  plus the **full list** of links (URL + anchor text) split into Internal /
+  External tabs; links with no anchor text are flagged. Export **all links** or
+  just **links without anchor text** to CSV.
+- **Images inventory** — image / without-`alt` / empty-`alt` / without-`title`
+  counts, plus the **full list** with a **thumbnail** and URL for each, split into
+  Without alt / With alt tabs, each tagged with alt/title status. Export **all
+  images** or just **incomplete** ones (missing alt or title) to CSV.
 - **Indexability** — canonical (with a self-match indicator), meta robots
   (flags `noindex`), viewport, `lang`, and charset.
 - **Social tags** — `og:title` / `og:description` / `og:image` and

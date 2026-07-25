@@ -118,25 +118,11 @@
     }
     wrap.appendChild(hsec);
 
-    // ---- Images ----
-    var im = d.images || {};
-    var imgRows = el('div', { class: 'op-inline' }, [
-      stat(ctx, im.total, 'images'),
-      stat(ctx, im.withAlt, 'with alt', im.withAlt ? 'ok' : ''),
-      stat(ctx, im.missingAlt, 'no alt attr', im.missingAlt ? 'bad' : 'ok'),
-      stat(ctx, im.emptyAlt, 'empty alt', im.emptyAlt ? 'warn' : '')
-    ]);
-    wrap.appendChild(section(ctx, 'Images', [imgRows]));
+    // ---- Links (with full inventory) ----
+    wrap.appendChild(renderLinks(ctx, d.links || {}));
 
-    // ---- Links ----
-    var lk = d.links || {};
-    var linkRows = el('div', { class: 'op-inline' }, [
-      stat(ctx, lk.total, 'links'),
-      stat(ctx, lk.internal, 'internal'),
-      stat(ctx, lk.external, 'external'),
-      stat(ctx, lk.nofollow, 'nofollow')
-    ]);
-    wrap.appendChild(section(ctx, 'Links', [linkRows]));
+    // ---- Images (with full inventory) ----
+    wrap.appendChild(renderImages(ctx, d.images || {}));
 
     // ---- Indexability / canonical ----
     var idxRows = [];
@@ -161,6 +147,159 @@
     wrap.appendChild(section(ctx, 'Social tags', socialRows));
 
     wrap.appendChild(renderStructuredData(ctx, d.structuredData));
+  }
+
+  // ---- Links inventory ----
+  function renderLinks(ctx, lk) {
+    var el = ctx.el;
+    var list = lk.list || [];
+    var sec = section(ctx, 'Links', [
+      el('div', { class: 'op-inline' }, [
+        stat(ctx, lk.total, 'total'),
+        stat(ctx, lk.unique, 'unique'),
+        stat(ctx, lk.internal, 'internal'),
+        stat(ctx, lk.external, 'external'),
+        stat(ctx, lk.nofollow, 'nofollow', lk.nofollow ? 'warn' : '')
+      ])
+    ]);
+
+    // Export buttons.
+    var exportRow = el('div', { class: 'row', style: 'margin:8px 0 4px;' }, [
+      miniBtn(ctx, 'Export all links', function () { exportLinks(ctx, list, 'all'); }),
+      miniBtn(ctx, 'Export links w/o anchor', function () { exportLinks(ctx, list, 'incomplete'); })
+    ]);
+    sec.appendChild(exportRow);
+
+    if (lk.truncated) sec.appendChild(el('div', { class: 'op-note', text: 'List capped at ' + list.length + ' links.' }));
+
+    // Filter tabs (Internal / External) + list.
+    var state2 = { filter: 'internal' };
+    var tabs = el('div', { class: 'sub-tabs' });
+    var listWrap = el('div', { class: 'inv-list' });
+    function draw() {
+      listWrap.innerHTML = '';
+      var items = list.filter(function (l) { return l.type === state2.filter; });
+      if (!items.length) { listWrap.appendChild(el('div', { class: 'op-note', text: 'No ' + state2.filter + ' links.' })); return; }
+      items.slice(0, 200).forEach(function (l) {
+        var row = el('div', { class: 'inv-row', title: l.href });
+        row.appendChild(el('a', { class: 'inv-href', href: l.href, target: '_blank', rel: 'noreferrer', text: l.display || l.href }));
+        row.appendChild(el('div', { class: 'inv-sub' + (l.hasAnchor ? '' : ' warn') },
+          [document.createTextNode(l.anchor || '(no anchor text)')]));
+        if (l.nofollow) row.appendChild(el('span', { class: 'pill pill-warn', text: 'nofollow' }));
+        listWrap.appendChild(row);
+      });
+      if (items.length > 200) listWrap.appendChild(el('div', { class: 'op-note', text: '…and ' + (items.length - 200) + ' more (use export for the full list).' }));
+    }
+    [['internal', 'Internal'], ['external', 'External']].forEach(function (f) {
+      var b = el('button', { class: 'sub-tab' + (state2.filter === f[0] ? ' active' : ''), text: f[1] });
+      b.addEventListener('click', function () {
+        state2.filter = f[0];
+        ctx.qsa('.sub-tab', tabs).forEach(function (x) { x.classList.remove('active'); });
+        b.classList.add('active');
+        draw();
+      });
+      tabs.appendChild(b);
+    });
+    sec.appendChild(tabs);
+    sec.appendChild(listWrap);
+    draw();
+    return sec;
+  }
+
+  function exportLinks(ctx, list, mode) {
+    var rows = [['Type', 'URL', 'Anchor text', 'Nofollow']];
+    list.forEach(function (l) {
+      if (mode === 'incomplete' && l.hasAnchor) return;
+      rows.push([l.type, l.href, l.anchor, l.nofollow ? 'yes' : 'no']);
+    });
+    var host = hostOf(ctx);
+    window.SEO_CSV.download('seo-sidekick-links-' + mode + '-' + host + '.csv', window.SEO_CSV.toCsv(rows));
+  }
+
+  // ---- Images inventory ----
+  function renderImages(ctx, im) {
+    var el = ctx.el;
+    var list = im.list || [];
+    var sec = section(ctx, 'Images', [
+      el('div', { class: 'op-inline' }, [
+        stat(ctx, im.total, 'images'),
+        stat(ctx, im.missingAlt, 'without alt', im.missingAlt ? 'bad' : 'ok'),
+        stat(ctx, im.emptyAlt, 'empty alt', im.emptyAlt ? 'warn' : ''),
+        stat(ctx, im.withoutTitle, 'without title', im.withoutTitle ? 'warn' : 'ok')
+      ])
+    ]);
+
+    var exportRow = el('div', { class: 'row', style: 'margin:8px 0 4px;' }, [
+      miniBtn(ctx, 'Export all images', function () { exportImages(ctx, list, 'all'); }),
+      miniBtn(ctx, 'Export incomplete', function () { exportImages(ctx, list, 'incomplete'); })
+    ]);
+    sec.appendChild(exportRow);
+
+    if (im.truncated) sec.appendChild(el('div', { class: 'op-note', text: 'List capped at ' + list.length + ' images.' }));
+
+    var state2 = { filter: 'noalt' };
+    var tabs = el('div', { class: 'sub-tabs' });
+    var listWrap = el('div', { class: 'inv-list' });
+    function draw() {
+      listWrap.innerHTML = '';
+      var items = list.filter(function (im2) {
+        return state2.filter === 'noalt' ? !im2.hasAlt : im2.hasAlt;
+      });
+      if (!items.length) { listWrap.appendChild(el('div', { class: 'op-note', text: 'None.' })); return; }
+      items.slice(0, 150).forEach(function (img) {
+        var row = el('div', { class: 'inv-row img-row', title: img.src });
+        var thumb = el('img', { class: 'inv-thumb', loading: 'lazy', referrerpolicy: 'no-referrer' });
+        thumb.src = img.src;
+        thumb.onerror = function () { thumb.style.visibility = 'hidden'; };
+        row.appendChild(thumb);
+        var meta = el('div', { class: 'inv-imgmeta' }, [
+          el('a', { class: 'inv-href', href: img.src, target: '_blank', rel: 'noreferrer', text: img.src }),
+          el('div', { class: 'inv-sub' }, [
+            el('span', { class: 'pill ' + (img.hasAlt ? 'pill-ok' : 'pill-bad'), text: img.hasAlt ? 'alt' : 'no alt' }),
+            document.createTextNode(' '),
+            el('span', { class: 'pill ' + (img.hasTitle ? 'pill-ok' : 'pill-int'), text: img.hasTitle ? 'title' : 'no title' }),
+            img.hasAlt ? document.createTextNode('  ' + (img.alt || '')) : null
+          ])
+        ]);
+        row.appendChild(meta);
+        listWrap.appendChild(row);
+      });
+      if (items.length > 150) listWrap.appendChild(el('div', { class: 'op-note', text: '…and ' + (items.length - 150) + ' more (use export for the full list).' }));
+    }
+    [['noalt', 'Without alt'], ['withalt', 'With alt']].forEach(function (f) {
+      var b = el('button', { class: 'sub-tab' + (state2.filter === f[0] ? ' active' : ''), text: f[1] });
+      b.addEventListener('click', function () {
+        state2.filter = f[0];
+        ctx.qsa('.sub-tab', tabs).forEach(function (x) { x.classList.remove('active'); });
+        b.classList.add('active');
+        draw();
+      });
+      tabs.appendChild(b);
+    });
+    sec.appendChild(tabs);
+    sec.appendChild(listWrap);
+    draw();
+    return sec;
+  }
+
+  function exportImages(ctx, list, mode) {
+    var rows = [['Image URL', 'Alt', 'Has alt', 'Title', 'Has title']];
+    list.forEach(function (img) {
+      var complete = img.hasAlt && img.hasTitle;
+      if (mode === 'incomplete' && complete) return;
+      rows.push([img.src, img.alt == null ? '' : img.alt, img.hasAlt ? 'yes' : 'no', img.title || '', img.hasTitle ? 'yes' : 'no']);
+    });
+    var host = hostOf(ctx);
+    window.SEO_CSV.download('seo-sidekick-images-' + mode + '-' + host + '.csv', window.SEO_CSV.toCsv(rows));
+  }
+
+  function hostOf(ctx) {
+    try { return new URL(ctx.activeTab.url).hostname; } catch (e) { return 'page'; }
+  }
+  function miniBtn(ctx, label, onClick) {
+    var b = ctx.el('button', { class: 'btn btn-ghost mini-btn', text: label });
+    b.addEventListener('click', onClick);
+    return b;
   }
 
   function renderStructuredData(ctx, sd) {
