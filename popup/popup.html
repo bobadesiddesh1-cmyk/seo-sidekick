@@ -20,10 +20,6 @@
         <small>Free · no account · no data collected</small>
       </div>
     </div>
-    <button id="open-fulltab" class="expand-btn" title="Open in a full tab (bigger, easier to read)">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14L21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg>
-      <span>Full tab</span>
-    </button>
   </header>
 
   <nav class="tabs" role="tablist" aria-label="SEO tools">
@@ -44,12 +40,6 @@
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"></path><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"></path></svg>
       </span>
       <span class="tab-label">AI/GEO</span>
-    </button>
-    <button class="tab" data-tab="speed" role="tab" aria-selected="false" title="PageSpeed Insights">
-      <span class="tab-ico" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"></path><path d="M5.6 18.4a9 9 0 1 1 12.8 0"></path><circle cx="12" cy="14" r="1.4"></circle></svg>
-      </span>
-      <span class="tab-label">Speed</span>
     </button>
     <button class="tab" data-tab="tech" role="tab" aria-selected="false" title="Technical: indexability, robots & sitemap">
       <span class="tab-ico" aria-hidden="true">
@@ -115,23 +105,6 @@
       </div>
       <div id="ai-status" class="status" role="status"></div>
       <div id="ai-results" class="results"></div>
-    </section>
-
-    <!-- Module 7: PageSpeed -->
-    <section class="panel" data-panel="speed">
-      <div class="panel-head">
-        <h2>PageSpeed Insights</h2>
-        <p class="muted">Lighthouse score + Core Web Vitals for the current page, via Google's PSI API.</p>
-      </div>
-      <div class="row" style="gap:4px;">
-        <button class="btn btn-ghost speed-strat" data-strat="mobile">📱 Mobile</button>
-        <button class="btn btn-ghost speed-strat" data-strat="desktop">🖥️ Desktop</button>
-      </div>
-      <div id="speed-target" class="muted tiny" style="word-break:break-all;"></div>
-      <label class="field-label" for="speed-key">Google API key (optional — raises the rate limit)</label>
-      <input id="speed-key" class="input" type="password" placeholder="Paste a PageSpeed API key (stored locally)">
-      <div id="speed-status" class="status" role="status"></div>
-      <div id="speed-results" class="results"></div>
     </section>
 
     <!-- Module 9: Tech -->
@@ -221,7 +194,6 @@
   <script src="tabs/onpage.js"></script>
   <script src="tabs/ai.js"></script>
   <script src="tabs/tech.js"></script>
-  <script src="tabs/speed.js"></script>
   <script src="tabs/hreflang.js"></script>
   <script src="tabs/highlight.js"></script>
   <script src="tabs/preview.js"></script>

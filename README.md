@@ -1,15 +1,15 @@
 # SEO Sidekick — Free On-Page & SERP Toolkit
 
-The free **SEO Minion replacement**. Eight daily SEO checks in one toolbar icon:
-broken links, on-page analysis with word count, AI/GEO readiness, PageSpeed
-score, technical indexability, hreflang validation, dofollow/nofollow
-highlighting, and a live pixel-width title/meta preview.
+The free **SEO Minion replacement**. Seven daily SEO checks in one toolbar icon:
+broken links, on-page analysis with word count, AI/GEO readiness, technical
+indexability, hreflang validation, dofollow/nofollow highlighting, and a live
+pixel-width title/meta preview. It opens as a **docked side panel** so the page
+stays visible next to it.
 
 **Zero account · zero paywall · zero sign-in.** Everything runs on your device.
 The only network requests the extension ever makes are ones *you* explicitly
-trigger: the link/hreflang checks, the robots.txt / sitemap fetches on the AI/GEO
-and Tech tabs, and — on the Speed tab — a PageSpeed Insights lookup that sends the
-page URL to Google's API. No analytics, no
+trigger: the link/hreflang checks and the robots.txt / sitemap fetches on the
+AI/GEO and Tech tabs. No analytics, no
 telemetry, no remote config, no sign-in.
 
 ---
@@ -26,18 +26,17 @@ No build step. No npm. No bundler. It loads exactly as-is.
 
 ---
 
-## The eight modules
+## The seven modules
 
-Open the popup and switch between eight tabs. **Every tab runs automatically** —
-there are no "run" buttons: the moment you open a tab it analyzes the current
-page (the AI/GEO, Tech and Speed tabs run on first open and cache the result;
-each has a small ↻ Refresh to re-run). Tab switching is instant.
+Clicking the toolbar icon opens SEO Sidekick as a **docked side panel** on the
+right — big and full-height, with the page still visible beside it. The panel
+**follows the active tab**: switch tabs or navigate, and it re-analyzes the new
+page automatically.
 
-**Open in a full tab.** The header has a **Full tab** button that reopens the
-entire toolkit as a full-width, easier-to-read browser tab (a roomy multi-column
-layout for the data-heavy tabs — link/image inventories, schema, AI/GEO, Tech).
-It stays pointed at the page you were analyzing (the target tab is passed along),
-so every scan still runs against that page, not the extension's own tab.
+Switch between seven tabs. **Every tab runs automatically** — there are no "run"
+buttons: the moment you open a tab it analyzes the current page (the AI/GEO and
+Tech tabs run on first open and cache the result; each has a small ↻ Refresh to
+re-run). Tab switching is instant.
 
 ### 1 · Links — Broken Link Checker
 Click **Scan this page for broken links**. The extension collects every
@@ -61,7 +60,7 @@ DOM order (truncation is noted in the UI), and checks each one:
   **Export CSV** writes every checked link (RFC-4180 quoted, UTF-8 BOM for Excel).
 
 ### 6 · On-Page — On-Page Elements Analyzer
-Runs **automatically** when you open the popup. Reads the current page's on-page
+Runs **automatically** when you open the panel. Reads the current page's on-page
 SEO elements directly from the DOM and reports them at a glance:
 
 - **Word count (main content only)** — the headline figure counts the words in
@@ -108,8 +107,8 @@ SEO elements directly from the DOM and reports them at a glance:
   types, item counts, and validation warnings.
 
 ### 9 · Tech — Technical & Indexability
-Click **Run checks** for a crawlability/indexability audit that reads what
-DOM-only tools miss — the **response headers**:
+Runs automatically when you open the tab — a crawlability/indexability audit that
+reads what DOM-only tools miss, the **response headers**:
 
 - **"Will Google index this?" verdict** — one clear answer combining HTTP status,
   the **`X-Robots-Tag` response header**, meta robots, canonical, and the
@@ -124,9 +123,8 @@ DOM-only tools miss — the **response headers**:
   current page is listed** in it.
 
 ### 8 · AI/GEO — AI Search / GEO Readiness
-Click **Analyze AI readiness** — the differentiator tab for the AI-search era.
-No account, still on-device (the only network call is fetching the site's own
-`robots.txt`/`llms.txt`).
+Runs automatically when you open the tab — the differentiator for the AI-search
+era. On-device except for fetching the site's own `robots.txt`/`llms.txt`.
 
 - **AI crawler access** — reads `robots.txt` and reports, for the current path,
   whether each major AI crawler is **allowed or blocked**: `GPTBot`,
@@ -268,9 +266,6 @@ reading the current query.
    count driven by the page's `<p>` text (nav/menu/script text excluded), correct
    H1–H6 counts, image alt stats, canonical/robots, and JSON-LD types; CSV export
    downloads every metric.
-8. **Module 7.** On the Speed tab, click Run test on a public page → a
-   performance score, category scores, and Core Web Vitals (lab + CrUX field
-   data where available) render; the Mobile/Desktop toggle re-runs for each.
 9. **Tabs.** All seven tabs switch instantly with no re-scan.
 
 ---
@@ -309,7 +304,7 @@ seo-sidekick/
 **Title:** SEO Sidekick — Free On-Page & AI SEO Toolkit
 
 **Summary (132 chars):**
-> Free, no account. Broken links, on-page analyzer, AI/GEO readiness, PageSpeed, indexability, hreflang, link highlighter & snippet preview.
+> Free, no account. Broken links, on-page analyzer, AI/GEO readiness, indexability, hreflang, link highlighter & snippet preview.
 
 **Description:**
 > **Free, no account, no sign-in.**
@@ -325,8 +320,6 @@ seo-sidekick/
 > • **AI / GEO Readiness** — AI-crawler access audit (GPTBot, ClaudeBot,
 >   PerplexityBot, Google-Extended…), an AI extractability score, keyword density
 >   and readability. Built for the AI-search era.
-> • **PageSpeed Insights** — Lighthouse score and Core Web Vitals (lab + real-user
->   CrUX) for the current page, Mobile/Desktop, via Google's PSI API.
 > • **Technical & Indexability** — a "Will Google index this?" verdict from the
 >   X-Robots-Tag header + meta robots + canonical + robots.txt, plus a sitemap check.
 > • **Hreflang Validator** — real ISO 639-1 code validation, self-reference and

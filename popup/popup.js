@@ -10,13 +10,8 @@
 (function () {
   'use strict';
 
-  // Are we running as a full browser tab (?fullpage=1) or the small popup?
-  var params = new URLSearchParams(location.search);
-  var IS_FULLPAGE = params.get('fullpage') === '1';
-
   var ctx = {
     activeTab: null,          // {id, url, title}
-    fullpage: IS_FULLPAGE,
     send: sendBg,
     qs: function (s, r) { return (r || document).querySelector(s); },
     qsa: function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); },
@@ -25,9 +20,8 @@
   };
 
   function sendBg(message) {
-    // Always target the analyzed tab explicitly. In the popup this is the active
-    // tab; in the full-tab view it's the tab captured when the view was opened
-    // (so the toolkit keeps analyzing the page, not its own extension tab).
+    // Always target the analyzed tab explicitly (the side panel persists across
+    // tab switches, so we can't rely on the worker's own "active tab").
     if (message && !message.tabId && ctx.activeTab && ctx.activeTab.id != null &&
         message.type !== 'fetch-resource') {
       message.tabId = ctx.activeTab.id;
@@ -105,17 +99,6 @@
   }
 
   async function loadActiveTab() {
-    // Full-tab view: the target tab was passed in the URL (its own tab is active,
-    // which we must NOT analyze). Popup: query the real active tab.
-    if (IS_FULLPAGE) {
-      var tid = parseInt(params.get('tabId'), 10);
-      ctx.activeTab = {
-        id: isNaN(tid) ? null : tid,
-        url: params.get('tabUrl') || '',
-        title: params.get('title') || ''
-      };
-      return;
-    }
     try {
       var tabs = await new Promise(function (resolve) {
         chrome.tabs.query({ active: true, currentWindow: true }, resolve);
@@ -124,35 +107,54 @@
     } catch (e) { ctx.activeTab = null; }
   }
 
-  // Open the whole toolkit in a full browser tab, pointed at the current page.
-  function wireExpand() {
-    var btn = ctx.qs('#open-fulltab');
-    if (!btn) return;
-    if (IS_FULLPAGE) { btn.style.display = 'none'; return; } // already full
-    btn.addEventListener('click', function () {
-      var t = ctx.activeTab || {};
-      var url = chrome.runtime.getURL('popup/popup.html') +
-        '?fullpage=1' +
-        '&tabId=' + encodeURIComponent(t.id != null ? t.id : '') +
-        '&tabUrl=' + encodeURIComponent(t.url || '') +
-        '&title=' + encodeURIComponent(t.title || '');
-      try { chrome.tabs.create({ url: url }); window.close(); } catch (e) {}
-    });
+  // The side panel stays open as the user switches/navigates tabs. Follow the
+  // active page: on a real change, reload the panel (all module state lives in
+  // per-file closures, so a reload is the clean way to re-analyze the new page).
+  // The selected sub-tab is preserved across the reload via sessionStorage.
+  var reloadTimer = null;
+  function followActiveTab() {
+    function schedule() {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(function () {
+        var prevId = ctx.activeTab && ctx.activeTab.id;
+        var prevUrl = ctx.activeTab && ctx.activeTab.url;
+        loadActiveTab().then(function () {
+          var t = ctx.activeTab;
+          if (!t) return;
+          if (t.id === prevId && t.url === prevUrl) return; // nothing changed
+          try { sessionStorage.setItem('seo_tab', currentTabName()); } catch (e) {}
+          location.reload();
+        });
+      }, 350);
+    }
+    try { chrome.tabs.onActivated.addListener(schedule); } catch (e) {}
+    try {
+      chrome.tabs.onUpdated.addListener(function (tabId, info) {
+        if (info.status === 'complete' && ctx.activeTab && tabId === ctx.activeTab.id) schedule();
+      });
+    } catch (e) {}
+  }
+  function currentTabName() {
+    var el = document.querySelector('.tab[aria-selected="true"]');
+    return el ? el.getAttribute('data-tab') : 'links';
   }
 
   document.addEventListener('DOMContentLoaded', async function () {
-    if (IS_FULLPAGE) document.body.classList.add('fullpage');
+    // Always the roomy side-panel layout.
+    document.body.classList.add('fullpage');
     registerTabs();
     wireTabs();
-    wireExpand();
     await loadActiveTab();
+    followActiveTab();
 
-    // Initialize the default (links) tab, and eagerly init the fast DOM-only
-    // auto-run tabs (on-page + hreflang + preview) so they populate before the
-    // user clicks. The network-backed tabs (ai / tech / speed) and highlight are
-    // lazy: they init — and auto-run — only when their tab is first opened, so we
-    // never fire PageSpeed/robots fetches for tabs the user doesn't visit.
-    activate('links');
+    // Restore the sub-tab the user was on before a tab-follow reload.
+    var startTab = 'links';
+    try { startTab = sessionStorage.getItem('seo_tab') || 'links'; } catch (e) {}
+    if (!document.querySelector('.tab[data-tab="' + startTab + '"]')) startTab = 'links';
+
+    // Eagerly init the fast DOM-only auto-run tabs so they populate immediately;
+    // the network-backed tabs (ai / tech) and highlight lazy-init and auto-run on
+    // first open, so we never fire robots/sitemap fetches for tabs never opened.
     ['onpage', 'hreflang', 'preview'].forEach(function (n) {
       var mod = TABS[n];
       if (mod && !initialized[n] && typeof mod.init === 'function') {
@@ -160,5 +162,6 @@
         try { mod.init(ctx); } catch (e) { /* silent */ }
       }
     });
+    activate(startTab);
   });
 })();
