@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "SEO Sidekick — Free On-Page & AI SEO Toolkit",
   "short_name": "SEO Sidekick",
-  "version": "1.9.0",
-  "description": "Free SEO toolkit: broken links, on-page analyzer, AI/GEO readiness, indexability, hreflang, link highlighter, snippet preview. Opens as a side panel. No account.",
+  "version": "1.9.1",
+  "description": "Free on-page & AI SEO toolkit: broken links, on-page audit, AI/GEO, indexability, hreflang, schema & snippet preview.",
   "permissions": [
     "storage",
     "activeTab",
