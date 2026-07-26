@@ -208,3 +208,20 @@ the default chosen is recorded here with a one-line rationale.
 - **New icon** — a gradient rounded-square with ascending bars + an upward trend
   arrow, rendered with Pillow (8× supersampled, LANCZOS) for crisp edges at all
   sizes; replaces the plain magnifier placeholder.
+
+## v1.9 — Side panel + PageSpeed removed
+
+- **Opens as a docked side panel, not a popup.** The toolbar action uses
+  `chrome.sidePanel` (permission `sidePanel`, `side_panel.default_path` →
+  `popup/popup.html?panel=1`, and `setPanelBehavior({openPanelOnActionClick:true})`
+  set on install/startup). `default_popup` was removed. The panel is big and
+  full-height with the page visible beside it — matching the reference tools.
+- **Follows the active tab.** Because a side panel persists across tab
+  switches/navigations, `popup.js` listens to `tabs.onActivated`/`onUpdated` and,
+  on a real change, reloads the panel (debounced) to re-analyze the new page,
+  preserving the selected sub-tab via `sessionStorage`. `host_permissions` (not
+  just `activeTab`) is what lets injection keep working as the active tab changes.
+- **Removed the PageSpeed (Speed) tab** and `popup/tabs/speed.js`. It was the only
+  feature that auto-called Google's PSI API (and hit shared-IP quotas); dropping it
+  removes that external dependency. The `.psi-*` styles remain — the AI/GEO score
+  card reuses them.

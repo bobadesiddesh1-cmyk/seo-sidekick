@@ -21,6 +21,30 @@
  */
 'use strict';
 
+// Clicking the toolbar icon opens the docked side panel (big, page stays visible)
+// instead of a small popup. setPanelBehavior persists; we set it on install and
+// on every service-worker start for safety.
+function enableSidePanel() {
+  try {
+    if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(function () {});
+    }
+  } catch (e) { /* older Chrome — side panel unavailable */ }
+}
+enableSidePanel();
+try { chrome.runtime.onInstalled.addListener(enableSidePanel); } catch (e) {}
+try { chrome.runtime.onStartup.addListener(enableSidePanel); } catch (e) {}
+// Fallback: if openPanelOnActionClick didn't take effect, an action click still
+// fires here (a user gesture) so we open the panel manually.
+try {
+  chrome.action.onClicked.addListener(function (tab) {
+    try {
+      if (tab && tab.windowId != null) chrome.sidePanel.open({ windowId: tab.windowId });
+      else if (tab && tab.id != null) chrome.sidePanel.open({ tabId: tab.id });
+    } catch (e) { /* ignore */ }
+  });
+} catch (e) {}
+
 // --- Injected wrapper callers (run in the page, not the worker) -------------
 function callCollectLinks() { return self.__SEO_collectLinks(); }
 function callHreflangChecker() { return self.__SEO_runHreflangChecker(); }
