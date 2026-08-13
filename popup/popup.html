@@ -35,6 +35,12 @@
       </span>
       <span class="tab-label">On-Page</span>
     </button>
+    <button class="tab" data-tab="schema" role="tab" aria-selected="false" title="Schema & Rich Results">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 3-3 3-3-3z"></path><path d="M5 9l3 3-3 3-3-3z"></path><path d="M19 9l3 3-3 3-3-3z"></path><path d="M12 16l3 3-3 3-3-3z"></path><path d="M10.5 7.5l-3 3M13.5 7.5l3 3M7.5 13.5l3 3M16.5 13.5l-3 3"></path></svg>
+      </span>
+      <span class="tab-label">Schema</span>
+    </button>
     <button class="tab" data-tab="ai" role="tab" aria-selected="false" title="AI Search / GEO readiness">
       <span class="tab-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"></path><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"></path></svg>
@@ -95,6 +101,16 @@
       </div>
       <div id="onpage-status" class="status" role="status"></div>
       <div id="onpage-results" class="results"></div>
+    </section>
+
+    <!-- Schema tab -->
+    <section class="panel" data-panel="schema">
+      <div class="panel-head">
+        <h2>Schema &amp; Rich Results</h2>
+        <p class="muted">Rich-result eligibility, an @id entity graph, a JSON-LD inspector, gap detection with copy-paste templates &amp; deep validation.</p>
+      </div>
+      <div id="schema-status" class="status" role="status"></div>
+      <div id="schema-results" class="results"></div>
     </section>
 
     <!-- Module 8: AI/GEO -->
@@ -200,6 +216,7 @@
   <!-- tab modules -->
   <script src="tabs/links.js"></script>
   <script src="tabs/onpage.js"></script>
+  <script src="tabs/schema.js"></script>
   <script src="tabs/ai.js"></script>
   <script src="tabs/tech.js"></script>
   <script src="tabs/hreflang.js"></script>

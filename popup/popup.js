@@ -155,7 +155,7 @@
     // Eagerly init the fast DOM-only auto-run tabs so they populate immediately;
     // the network-backed tabs (ai / tech) and highlight lazy-init and auto-run on
     // first open, so we never fire robots/sitemap fetches for tabs never opened.
-    ['onpage', 'hreflang', 'preview'].forEach(function (n) {
+    ['onpage', 'schema', 'hreflang', 'preview'].forEach(function (n) {
       var mod = TABS[n];
       if (mod && !initialized[n] && typeof mod.init === 'function') {
         initialized[n] = true;
