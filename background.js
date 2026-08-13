@@ -16,6 +16,7 @@
  *   'read-snippet'    -> Module 5  (inject/snippet-reader.js)
  *   'analyze-onpage'  -> Module 6  (inject/onpage-analyzer.js)
  *   'analyze-content' -> Module 8  (inject/content-analyzer.js) — GEO + content intel
+ *   'analyze-schema'  -> Schema tab (inject/schema-analyzer.js) — rich-result eligibility
  *   'fetch-resource'  -> network fetch (robots.txt/llms.txt/sitemap/headers), no tab
  *   'highlight'       -> Module 3  (content/highlighter.js) action: on|off|toggle|counts|state
  */
@@ -51,6 +52,7 @@ function callHreflangChecker() { return self.__SEO_runHreflangChecker(); }
 function callSnippetReader() { return self.__SEO_readSnippet(); }
 function callOnpageAnalyzer() { return self.__SEO_runOnpageAnalyzer(); }
 function callContentAnalyzer() { return self.__SEO_runContentAnalyzer(); }
+function callSchemaAnalyzer() { return self.__SEO_runSchemaAnalyzer(); }
 function callHighlightEnable() { return self.__SEO_highlighter.enable(); }
 function callHighlightDisable() { return self.__SEO_highlighter.disable(); }
 function callHighlightToggle() { return self.__SEO_highlighter.toggle(); }
@@ -296,6 +298,12 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
           await injectFile(tab.id, 'inject/content-analyzer.js');
           var content = await callInPage(tab.id, callContentAnalyzer);
           sendResponse({ ok: true, data: content });
+          return;
+        }
+        case 'analyze-schema': {
+          await injectFile(tab.id, 'inject/schema-analyzer.js');
+          var schema = await callInPage(tab.id, callSchemaAnalyzer);
+          sendResponse({ ok: true, data: schema });
           return;
         }
         case 'highlight': {
