@@ -286,9 +286,22 @@ body.fullpage .verdict, body.fullpage .hf-card, body.fullpage .sd-item {
 
 /* Footer */
 .app-footer {
-  padding: 8px 14px; border-top: 1px solid var(--border);
-  color: var(--fg-soft); font-size: 10.5px; text-align: center; background: var(--bg-soft);
+  padding: 9px 14px 11px; border-top: 1px solid var(--border);
+  background: var(--bg-soft);
 }
+.foot-privacy { color: var(--fg-soft); font-size: 10px; text-align: center; margin-bottom: 8px; }
+.bws {
+  display: flex; align-items: center; gap: 9px; justify-content: center;
+  text-decoration: none; padding: 7px 10px; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--bg-elev);
+  transition: border-color .15s, box-shadow .15s, transform .1s;
+}
+.bws:hover { border-color: #c8f135; box-shadow: 0 0 0 3px rgba(200,241,53,.22); transform: translateY(-1px); }
+.bws-logo { width: 26px; height: 26px; border-radius: 7px; flex: 0 0 auto; }
+.bws-txt { display: flex; flex-direction: column; line-height: 1.15; }
+.bws-txt b { font-size: 12px; color: var(--fg); }
+.bws-txt small { font-size: 10px; color: var(--fg-soft); }
+.bws:hover .bws-txt b { color: var(--accent); }
 
 .empty-note {
   padding: 14px; text-align: center; color: var(--fg-soft);
