@@ -71,6 +71,29 @@
       return /^https?:\/\//i.test(v) || v.charAt(0) === '/';
     }
 
+    // ---- Page signals (used to auto-fill recommended fixes) ----------------
+    // Real values pulled from the page so generated schema uses the page's own
+    // title/image/dates/author where possible, not just placeholders.
+    function metaC(sel) { var el = q(sel); return el ? (el.getAttribute('content') || '').trim() : ''; }
+    var pageSignals = (function () {
+      var canon = q('link[rel="canonical"]');
+      var h1 = q('h1');
+      var authorEl = q('[rel="author"], [itemprop="author"], .author-name, .byline a, .byline, .author');
+      var logoEl = q('img[class*="logo" i], header img[src*="logo" i], img[alt*="logo" i]');
+      function abs(u) { try { return u ? new URL(u, location.href).href : ''; } catch (e) { return u || ''; } }
+      return {
+        ogImage: abs(metaC('meta[property="og:image"]') || metaC('meta[name="twitter:image"]')),
+        title: (h1 && txt(h1)) || (document.title || ''),
+        canonical: (canon && canon.href) || location.href,
+        published: metaC('meta[property="article:published_time"]'),
+        modified: metaC('meta[property="article:modified_time"]'),
+        author: ((authorEl && txt(authorEl).slice(0, 80)) || metaC('meta[name="author"]')),
+        siteName: metaC('meta[property="og:site_name"]') || location.hostname.replace(/^www\./, ''),
+        logo: abs(logoEl && (logoEl.currentSrc || logoEl.getAttribute('src'))),
+        description: metaC('meta[name="description"]')
+      };
+    })();
+
     // ---- Google rich-result requirement table ------------------------------
     // req = must be present for eligibility; rec = strongly recommended.
     // docsKey drives a "Learn more" deep link in the UI.
@@ -321,6 +344,136 @@
       });
     });
 
+    // ---- Recommendations: corrected/expanded JSON-LD per entity ------------
+    // For each rich-eligible entity that is missing required OR recommended
+    // fields, produce a downloadable, corrected copy of that block — filling
+    // gaps from page signals where possible, else with clear placeholders.
+    function cloneNode(o) { try { return JSON.parse(JSON.stringify(o)); } catch (e) { return {}; } }
+    function deriveValue(field) {
+      var S = pageSignals;
+      switch (field) {
+        case 'image': return S.ogImage ? [S.ogImage] : ['https://example.com/image-1200x630.jpg'];
+        case 'headline': return S.title || 'Your headline here';
+        case 'name': return S.title || 'Name here';
+        case 'title': return S.title || 'Title here';
+        case 'description': return (S.description || 'A concise description of this page.').slice(0, 300);
+        case 'datePublished': return S.published || '2024-01-01T08:00:00+00:00';
+        case 'dateModified': return S.modified || S.published || '2024-01-02T10:00:00+00:00';
+        case 'uploadDate': return S.published || '2024-01-01T08:00:00+00:00';
+        case 'datePosted': return S.published || '2024-01-01';
+        case 'validThrough': return '2024-12-31';
+        case 'startDate': return '2024-01-01T09:00:00+00:00';
+        case 'endDate': return '2024-01-01T17:00:00+00:00';
+        case 'author': return S.author ? { '@type': 'Person', 'name': S.author } : { '@type': 'Person', 'name': 'Author Name', 'url': 'https://example.com/author' };
+        case 'publisher': return { '@type': 'Organization', 'name': S.siteName || 'Site Name', 'logo': { '@type': 'ImageObject', 'url': S.logo || 'https://example.com/logo.png' } };
+        case 'url': return S.canonical || 'https://example.com/';
+        case 'thumbnailUrl': return S.ogImage ? [S.ogImage] : ['https://example.com/thumbnail.jpg'];
+        case 'contentUrl': return 'https://example.com/video.mp4';
+        case 'embedUrl': return 'https://example.com/embed/123';
+        case 'duration': return 'PT1M30S';
+        case 'logo': return S.logo || 'https://example.com/logo.png';
+        case 'sameAs': return ['https://twitter.com/yourhandle', 'https://www.linkedin.com/company/yourcompany'];
+        case 'contactPoint': return { '@type': 'ContactPoint', 'telephone': '+1-000-000-0000', 'contactType': 'customer service' };
+        case 'telephone': return '+1-000-000-0000';
+        case 'address': return { '@type': 'PostalAddress', 'streetAddress': '123 Main St', 'addressLocality': 'City', 'addressRegion': 'ST', 'postalCode': '00000', 'addressCountry': 'US' };
+        case 'openingHours': return 'Mo-Fr 09:00-17:00';
+        case 'geo': return { '@type': 'GeoCoordinates', 'latitude': '0.0', 'longitude': '0.0' };
+        case 'priceRange': return '$$';
+        case 'location': return { '@type': 'Place', 'name': 'Venue name', 'address': { '@type': 'PostalAddress', 'streetAddress': '123 Main St', 'addressLocality': 'City', 'addressCountry': 'US' } };
+        case 'brand': return { '@type': 'Brand', 'name': S.siteName || 'Brand' };
+        case 'sku': return 'SKU-0001';
+        case 'aggregateRating': return { '@type': 'AggregateRating', 'ratingValue': '4.5', 'reviewCount': '100' };
+        case 'review': return { '@type': 'Review', 'reviewRating': { '@type': 'Rating', 'ratingValue': '5', 'bestRating': '5' }, 'author': { '@type': 'Person', 'name': 'Reviewer name' } };
+        case 'reviewRating': return { '@type': 'Rating', 'ratingValue': '5', 'bestRating': '5' };
+        case 'itemReviewed': return { '@type': 'Thing', 'name': S.title || 'Item name' };
+        case 'ratingValue': return '4.5';
+        case 'reviewCount': return '100';
+        case 'ratingCount': return '100';
+        case 'offers': return { '@type': 'Offer', 'price': '0.00', 'priceCurrency': 'USD', 'availability': 'https://schema.org/InStock', 'url': S.canonical || 'https://example.com/' };
+        case 'step': return [{ '@type': 'HowToStep', 'text': 'Describe step one.' }, { '@type': 'HowToStep', 'text': 'Describe step two.' }];
+        case 'hiringOrganization': return { '@type': 'Organization', 'name': S.siteName || 'Company', 'sameAs': S.canonical || 'https://example.com/' };
+        case 'jobLocation': return { '@type': 'Place', 'address': { '@type': 'PostalAddress', 'addressLocality': 'City', 'addressCountry': 'US' } };
+        case 'baseSalary': return { '@type': 'MonetaryAmount', 'currency': 'USD', 'value': { '@type': 'QuantitativeValue', 'value': '0', 'unitText': 'YEAR' } };
+        case 'employmentType': return 'FULL_TIME';
+        case 'eventStatus': return 'https://schema.org/EventScheduled';
+        case 'operatingSystem': return 'Web';
+        case 'applicationCategory': return 'BusinessApplication';
+        case 'performer': return { '@type': 'PerformingGroup', 'name': 'Performer name' };
+        case 'recipeIngredient': return ['1 cup ingredient', '2 tbsp ingredient'];
+        case 'recipeInstructions': return [{ '@type': 'HowToStep', 'text': 'Step one.' }];
+        case 'nutrition': return { '@type': 'NutritionInformation', 'calories': '0 calories' };
+        default: return 'REPLACE_WITH_VALUE';
+      }
+    }
+    function applySpecialFix(kind, node, fixed, changes) {
+      if (kind === 'product') {
+        if (!has(node, 'name')) { fixed.name = deriveValue('name'); changes.push({ field: 'name', kind: 'required' }); }
+        if (!has(node, 'image')) { fixed.image = deriveValue('image'); changes.push({ field: 'image', kind: 'required' }); }
+        var offers = firstOf(node.offers);
+        if (!offers) { fixed.offers = deriveValue('offers'); changes.push({ field: 'offers (price + priceCurrency)', kind: 'required' }); }
+        else {
+          var of = firstOf(fixed.offers);
+          if (of && typeof of === 'object') {
+            if (!has(offers, 'price') && !has(offers, 'lowPrice')) { of.price = '0.00'; changes.push({ field: 'offers.price', kind: 'required' }); }
+            if (!has(offers, 'priceCurrency')) { of.priceCurrency = 'USD'; changes.push({ field: 'offers.priceCurrency', kind: 'required' }); }
+          }
+        }
+        return;
+      }
+      if (kind === 'faq' && !has(node, 'mainEntity')) {
+        fixed.mainEntity = [
+          { '@type': 'Question', 'name': 'Your first question?', 'acceptedAnswer': { '@type': 'Answer', 'text': 'The answer to the first question.' } },
+          { '@type': 'Question', 'name': 'Your second question?', 'acceptedAnswer': { '@type': 'Answer', 'text': 'The answer to the second question.' } }
+        ];
+        changes.push({ field: 'mainEntity (Question + acceptedAnswer)', kind: 'required' });
+        return;
+      }
+      if (kind === 'breadcrumb' && !has(node, 'itemListElement')) {
+        fixed.itemListElement = [
+          { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': (pageSignals.canonical ? new URL('/', pageSignals.canonical).href : 'https://example.com/') },
+          { '@type': 'ListItem', 'position': 2, 'name': 'Section', 'item': 'https://example.com/section/' },
+          { '@type': 'ListItem', 'position': 3, 'name': (pageSignals.title || 'This page'), 'item': pageSignals.canonical || 'https://example.com/section/this-page/' }
+        ];
+        changes.push({ field: 'itemListElement', kind: 'required' });
+        return;
+      }
+    }
+    var recommendations = [];
+    var recSeen = {};
+    richNodes.forEach(function (rn) {
+      var node = rn.node;
+      var primary = rn.hit[0];
+      var key = primary + '|' + (node['@id'] || '') + '|' + (node.name || node.headline || node.title || '');
+      if (recSeen[key]) return; recSeen[key] = true;
+      var fixed = cloneNode(node);
+      var changes = [];
+      rn.hit.forEach(function (tp) {
+        var spec = RICH[tp];
+        if (spec.special) applySpecialFix(spec.special, node, fixed, changes);
+        else spec.req.forEach(function (p) {
+          if (!has(node, p)) { fixed[p] = deriveValue(p); changes.push({ field: p, kind: 'required' }); }
+        });
+        spec.rec.forEach(function (p) {
+          if (!has(node, p) && !(fixed[p] !== undefined)) { fixed[p] = deriveValue(p); changes.push({ field: p, kind: 'recommended' }); }
+        });
+      });
+      if (!changes.length) return;
+      // Reorder so @context and @type lead the object.
+      if (!fixed['@context']) fixed['@context'] = 'https://schema.org';
+      var ordered = { '@context': fixed['@context'], '@type': fixed['@type'] };
+      Object.keys(fixed).forEach(function (k) { if (k !== '@context' && k !== '@type') ordered[k] = fixed[k]; });
+      var reqCount = changes.filter(function (c) { return c.kind === 'required'; }).length;
+      recommendations.push({
+        type: primary, label: RICH[primary].label, docs: RICH[primary].docs,
+        name: String(node.name || node.headline || node.title || '').slice(0, 80),
+        severity: reqCount ? 'required' : 'recommended',
+        requiredFixes: reqCount,
+        recommendedFixes: changes.length - reqCount,
+        changes: changes,
+        fixedJson: cap(JSON.stringify(ordered, null, 2), 60000)
+      });
+    });
+
     // ---- Microdata / RDFa ---------------------------------------------------
     var microTypes = [];
     var microItems = qa('[itemscope]');
@@ -426,11 +579,13 @@
         entities: entities.length, types: allTypes.length,
         eligible: eligibleCount, blocked: blockedCount,
         gaps: gaps.length, errors: errorCount, warnings: warnCount,
+        recommendations: recommendations.length,
         microdata: microItems.length, rdfa: rdfaNodes.length
       },
       allTypes: allTypes,
       blocks: blocks,
       eligibility: eligibility,
+      recommendations: recommendations,
       graph: { nodes: graphNodes, edges: edges, brokenRefs: brokenRefs },
       gaps: gaps,
       validation: validation.slice(0, 200),

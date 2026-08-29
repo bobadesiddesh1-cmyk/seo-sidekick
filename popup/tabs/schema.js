@@ -150,6 +150,8 @@
 
     // A) Rich-result eligibility.
     wrap.appendChild(renderEligibility(ctx, d));
+    // A+) Recommendations — corrected, downloadable JSON-LD.
+    wrap.appendChild(renderRecommendations(ctx, d));
     // C) Gap detector + templates.
     wrap.appendChild(renderGaps(ctx, d));
     // B) Inspector + graph.
@@ -171,9 +173,9 @@
     }
     grid.appendChild(card(c.eligible || 0, 'rich-result eligible', (c.eligible ? 'good' : 'muted')));
     grid.appendChild(card(c.blocked || 0, 'blocked (missing fields)', (c.blocked ? 'warn' : 'muted')));
+    grid.appendChild(card(c.recommendations || 0, 'fixes ready', (c.recommendations ? 'warn' : 'good')));
     grid.appendChild(card(c.gaps || 0, 'opportunities', (c.gaps ? 'warn' : 'good')));
     grid.appendChild(card(c.errors || 0, 'errors', (c.errors ? 'bad' : 'good')));
-    grid.appendChild(card(c.entities || 0, 'entities', 'muted'));
     grid.appendChild(card((d.formats || []).length ? d.formats.join(' · ') : '—', 'formats', 'muted'));
     return grid;
   }
@@ -186,6 +188,11 @@
     row.appendChild(linkBtn(ctx, 'Test in Google Rich Results', testUrl, googleSvg()));
     row.appendChild(linkBtn(ctx, 'Schema.org Validator', valUrl, checkSvg()));
     row.appendChild(actionBtn(ctx, 'Re-analyze', function () { run(ctx, true); }, refreshSvg()));
+    if ((d.recommendations || []).length) {
+      row.appendChild(actionBtn(ctx, 'Download all fixes', function () {
+        window.SEO_CSV.downloadText('schema-fixes-' + hostOf(d) + '.html', allFixesText(d.recommendations), 'text/html');
+      }, wrenchSvg()));
+    }
     if ((d.blocks || []).length) {
       row.appendChild(actionBtn(ctx, 'Export all JSON-LD', function () {
         var all = (d.blocks || []).map(function (b, i) {
@@ -243,6 +250,72 @@
         recWrap.appendChild(recChips);
         card.appendChild(recWrap);
       }
+      sec.appendChild(card);
+    });
+    return sec;
+  }
+
+  // ---- A+) Recommendations: corrected, downloadable JSON-LD --------------
+  function scriptWrapText(jsonText) {
+    return '<script type="application/ld+json">\n' + jsonText + '\n<\/script>';
+  }
+  function allFixesText(recs) {
+    return (recs || []).map(function (r) {
+      return '<!-- Fixed ' + r.label + (r.name ? ' — ' + r.name : '') +
+        ' · ' + r.requiredFixes + ' required, ' + r.recommendedFixes + ' recommended -->\n' +
+        scriptWrapText(r.fixedJson);
+    }).join('\n\n');
+  }
+  function renderRecommendations(ctx, d) {
+    var el = ctx.el;
+    var recs = d.recommendations || [];
+    var sec = block(ctx, 'Recommendations — ready-to-use fixes',
+      'Your existing schema, corrected: missing fields added (from the page where possible), ready to copy or download.');
+    if (!recs.length) {
+      sec.appendChild(el('div', { class: 'sd-note ok', text: '✓ Nothing to fix — detected schema already has its required and recommended fields.' }));
+      return sec;
+    }
+    recs.forEach(function (r, i) {
+      var card = el('div', { class: 'rec-card ' + (r.severity === 'required' ? 'req' : 'rec') });
+      card.appendChild(el('div', { class: 'rec-head' }, [
+        el('span', { class: 'rec-badge ' + (r.severity === 'required' ? 'req' : 'rec'),
+          text: r.severity === 'required' ? 'Fixes blocker' : 'Improves' }),
+        el('div', { class: 'rec-t', text: r.label + (r.name ? ' — ' + r.name : '') }),
+        el('span', { class: 'rec-type', text: r.type })
+      ]));
+
+      // What changed — chips (required vs recommended).
+      var chips = el('div', { class: 'rec-changes' });
+      r.changes.forEach(function (c) {
+        chips.appendChild(el('span', { class: 'chip ' + (c.kind === 'required' ? 'chip-bad' : 'chip-warn'),
+          html: '<b>+</b><span>' + esc(ctx, c.field) + '</span>' }));
+      });
+      card.appendChild(chips);
+      card.appendChild(el('div', { class: 'rec-hint',
+        text: 'Values pulled from the page where available; replace any ' +
+              '“REPLACE_WITH_VALUE” / example.com placeholders before publishing.' }));
+
+      // Corrected code (collapsible) + copy/download.
+      var box = el('details', { class: 'rec-code-box' });
+      if (i === 0) box.setAttribute('open', '');
+      box.appendChild(el('summary', { text: 'Corrected JSON-LD' }));
+      box.appendChild(el('div', { class: 'rec-actions' }, [
+        actionBtn(ctx, 'Copy fixed code', function () {
+          copyText(scriptWrapText(r.fixedJson)); flash(ctx, this, 'Copied ✓');
+        }, copySvg()),
+        actionBtn(ctx, 'Download .html', function () {
+          var name = ('schema-fixed-' + (r.type || 'block') + '-' + (i + 1)).replace(/[^\w.\-]+/g, '_') + '.html';
+          window.SEO_CSV.downloadText(name, scriptWrapText(r.fixedJson), 'text/html');
+        }, downloadSvg()),
+        actionBtn(ctx, '.json', function () {
+          var name = ('schema-fixed-' + (r.type || 'block') + '-' + (i + 1)).replace(/[^\w.\-]+/g, '_') + '.json';
+          window.SEO_CSV.downloadText(name, r.fixedJson, 'application/json');
+        }, downloadSvg())
+      ]));
+      var pre = el('pre', { class: 'insp-code' });
+      pre.innerHTML = highlightJson(r.fixedJson);
+      box.appendChild(pre);
+      card.appendChild(box);
       sec.appendChild(card);
     });
     return sec;
@@ -472,6 +545,7 @@
   function refreshSvg() { return '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path><path d="M21 3v5h-5"></path></svg>'; }
   function googleSvg() { return '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>'; }
   function infoSvg() { return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 16v-4M12 8h.01"></path></svg>'; }
+  function wrenchSvg() { return '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L3 18l3 3 6.5-6.5a4 4 0 0 0 5.2-5.2l-2.4 2.4-2.1-2.1z"></path></svg>'; }
 
   window.SEO_TABS.schema = { init: init };
 })();

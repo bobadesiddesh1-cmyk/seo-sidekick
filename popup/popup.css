@@ -596,3 +596,20 @@ body.fullpage .verdict, body.fullpage .hf-card, body.fullpage .sd-item {
 .val-tag.warn { background: var(--warn); }
 .val-tag.info { background: var(--fg-soft); }
 .val-msg { color: var(--fg); line-height: 1.4; }
+
+/* Schema tab — Recommendations (corrected code) */
+.rec-card { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: var(--bg-elev); }
+.rec-card.req { border-left: 4px solid var(--bad); }
+.rec-card.rec { border-left: 4px solid var(--warn); }
+.rec-head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.rec-badge { flex: 0 0 auto; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 3px 8px; border-radius: 6px; color: #fff; }
+.rec-badge.req { background: var(--bad); }
+.rec-badge.rec { background: var(--warn); }
+.rec-t { font-weight: 800; font-size: 13px; color: var(--fg); }
+.rec-type { margin-left: auto; font-size: 9.5px; font-weight: 800; color: var(--fg-soft); background: var(--chip-bg); padding: 3px 9px; border-radius: 20px; }
+.rec-changes { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.rec-changes .chip b { font-weight: 800; }
+.rec-hint { font-size: 11px; color: var(--fg-soft); margin-bottom: 8px; line-height: 1.4; }
+.rec-code-box > summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--accent); padding: 4px 0; user-select: none; }
+.rec-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.rec-code-box .insp-code { margin: 4px 0 0; }
