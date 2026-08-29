@@ -146,10 +146,11 @@
     ]));
 
     // ---- Recommendations (this tab as a recommendation engine) ----
-    if (window.SEO_RECO) {
+    if (window.SEO_RECO && window.SEO_RECO_RULES) {
       wrap.appendChild(window.SEO_RECO.section(ctx, 'Recommendations',
         'How to make this page more visible and quotable in AI answers.',
-        buildAiRecos(d), { empty: '✓ This page is already well set up for AI search.' }));
+        window.SEO_RECO_RULES.ai({ content: d.content, robots: d.robots, llms: d.llms, url: d.url, path: d.path }),
+        { empty: '✓ This page is already well set up for AI search.' }));
     }
 
     // ---- Extractability score ----
@@ -299,34 +300,7 @@
     s.textContent = text;
   }
 
-  // ---- Recommendation engine (AI/GEO) ----
-  function buildAiRecos(d) {
-    var recos = [], c = d.content || {};
-    (c.extractability && c.extractability.signals || []).forEach(function (s) {
-      if (!s.ok) recos.push({ sev: 'med', title: s.label,
-        detail: s.hint || 'Improve this to be more extractable by AI answer engines.' });
-    });
-    if (d.robots && d.robots.body) {
-      var groups = parseRobots(d.robots.body);
-      var important = [['GPTBot', 'ChatGPT'], ['OAI-SearchBot', 'ChatGPT Search'],
-        ['ClaudeBot', 'Claude'], ['PerplexityBot', 'Perplexity'], ['Google-Extended', 'Gemini']];
-      var blocked = important.filter(function (b) { return !robotsAllows(groups, b[0], d.path).allowed; });
-      if (blocked.length) {
-        var snip = blocked.map(function (b) { return 'User-agent: ' + b[0] + '\nAllow: /'; }).join('\n\n');
-        recos.push({ sev: 'med', title: 'Allow key AI crawlers',
-          detail: 'Blocked in robots.txt: ' + blocked.map(function (b) { return b[0] + ' (' + b[1] + ')'; }).join(', ') +
-            '. Allow them so your content is eligible for citation in AI answers.',
-          code: snip, codeName: 'robots-ai-allow.txt' });
-      }
-    }
-    var r = c.readability;
-    if (r && r.grade > 12) recos.push({ sev: 'low', title: 'Simplify the writing',
-      detail: 'Reading grade level is ' + r.grade + '; aim for ≤12 so AI answers can extract clean, quotable sentences.' });
-    var hasLlms = d.llms && d.llms.status >= 200 && d.llms.status < 400;
-    if (!hasLlms) recos.push({ sev: 'low', title: 'Consider adding an llms.txt',
-      detail: 'An llms.txt at your site root lets you point AI crawlers to your key content. Optional, but an easy win.' });
-    return recos;
-  }
+  // Recommendation logic lives in shared/reco-rules.js (SEO_RECO_RULES.ai).
 
   window.SEO_TABS.ai = { init: init };
 })();

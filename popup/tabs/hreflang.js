@@ -71,6 +71,14 @@
     }
     page.innerHTML = pageHtml;
 
+    // ---- Recommendations ----
+    if (window.SEO_RECO && window.SEO_RECO_RULES) {
+      wrap.appendChild(window.SEO_RECO.section(ctx, 'Recommendations',
+        'Fix these hreflang issues to keep international targeting valid.',
+        window.SEO_RECO_RULES.hreflang(data),
+        { empty: '✓ Hreflang looks valid — no issues found.' }));
+    }
+
     tags.forEach(function (t) {
       var card = ctx.el('div', { class: 'hf-card ' + (t.pass ? 'ok' : 'bad') });
 

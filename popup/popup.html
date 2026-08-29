@@ -23,6 +23,12 @@
   </header>
 
   <nav class="tabs" role="tablist" aria-label="SEO tools">
+    <button class="tab" data-tab="report" role="tab" aria-selected="false" title="All fixes — one prioritised action list">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+      </span>
+      <span class="tab-label">Fixes</span>
+    </button>
     <button class="tab" data-tab="links" role="tab" aria-selected="true" title="Broken Link Checker">
       <span class="tab-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"></path></svg>
@@ -74,6 +80,16 @@
   </nav>
 
   <main class="panels">
+    <!-- Fixes: consolidated recommendation engine -->
+    <section class="panel" data-panel="report">
+      <div class="panel-head">
+        <h2>All Fixes — Prioritised Action Plan</h2>
+        <p class="muted">Every issue we find across on-page, schema, technical, AI/GEO &amp; hreflang, rolled into one High→Low list with copy-paste code.</p>
+      </div>
+      <div id="report-status" class="status" role="status"></div>
+      <div id="report-results" class="results"></div>
+    </section>
+
     <!-- Module 1: Links -->
     <section class="panel is-active" data-panel="links">
       <div class="panel-head">
@@ -213,8 +229,10 @@
   <script src="../shared/csv.js"></script>
   <script src="../shared/iso-languages.js"></script>
   <script src="../shared/pixel-measure.js"></script>
+  <script src="../shared/reco-rules.js"></script>
   <script src="../shared/recos.js"></script>
   <!-- tab modules -->
+  <script src="tabs/report.js"></script>
   <script src="tabs/links.js"></script>
   <script src="tabs/onpage.js"></script>
   <script src="tabs/schema.js"></script>

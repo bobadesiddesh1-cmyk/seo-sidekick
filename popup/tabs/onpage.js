@@ -75,10 +75,10 @@
     wrap.appendChild(card);
 
     // ---- Recommendations (this tab as a recommendation engine) ----
-    if (window.SEO_RECO) {
+    if (window.SEO_RECO && window.SEO_RECO_RULES) {
       wrap.appendChild(window.SEO_RECO.section(ctx, 'Recommendations',
         'Prioritised on-page fixes for this page — each with copy-paste code.',
-        buildOnpageRecos(d),
+        window.SEO_RECO_RULES.onpage(d),
         { empty: '✓ On-page basics look solid — no issues found.' }));
     }
 
@@ -482,69 +482,10 @@
     window.SEO_CSV.download('seo-sidekick-onpage-' + host + '.csv', window.SEO_CSV.toCsv(rows));
   }
 
-  // ---- Recommendation engine (On-Page) ----
+  // Recommendation logic lives in shared/reco-rules.js (SEO_RECO_RULES.onpage).
+  // This local helper is only for the Indexability display (current vs recommended).
   function selfCanonical(u) {
     try { var x = new URL(u); x.hash = ''; return x.href; } catch (e) { return u || ''; }
-  }
-  function buildOnpageRecos(d) {
-    var recos = [];
-    var self = selfCanonical(d.url);
-    var t = d.title || {}, md = d.metaDescription || {}, hc = d.headingCounts || {}, im = d.images || {};
-    // Title
-    if (!t.length) recos.push({ sev: 'high', title: 'Add a page <title>',
-      detail: 'This page has no title tag — the single strongest on-page ranking signal.',
-      code: '<title>Primary keyword — Brand</title>', codeName: 'title.html' });
-    else if (t.length > 60) recos.push({ sev: 'med', title: 'Shorten the title',
-      detail: 'The title is ' + t.length + ' characters; keep it ~50–60 so Google doesn’t truncate it.', current: t.text });
-    else if (t.length < 15) recos.push({ sev: 'low', title: 'Expand the title',
-      detail: 'The title is only ' + t.length + ' characters — add your primary keyword and brand.', current: t.text });
-    // Meta description
-    if (!md.length) recos.push({ sev: 'high', title: 'Add a meta description',
-      detail: 'No meta description — write a 70–160 character summary with your key term to lift click-through.',
-      code: '<meta name="description" content="A compelling 150–160 character summary that includes your primary keyword.">',
-      codeName: 'meta-description.html' });
-    else if (md.length > 160) recos.push({ sev: 'med', title: 'Trim the meta description',
-      detail: 'It’s ' + md.length + ' characters; keep it ≤160 so it isn’t cut off in search.', current: md.text });
-    else if (md.length < 70) recos.push({ sev: 'low', title: 'Lengthen the meta description',
-      detail: 'It’s only ' + md.length + ' characters; 70–160 gives Google more to show.', current: md.text });
-    // H1
-    if ((hc.h1 || 0) === 0) recos.push({ sev: 'high', title: 'Add exactly one H1',
-      detail: 'No H1 found — every page needs one clear top-level heading.',
-      code: '<h1>Your main page heading</h1>', codeName: 'h1.html' });
-    else if ((hc.h1 || 0) > 1) recos.push({ sev: 'med', title: 'Use a single H1',
-      detail: 'Found ' + hc.h1 + ' H1 tags; keep one H1 and demote the rest to H2/H3.' });
-    // Meta robots noindex
-    if (/noindex/i.test(d.robots || '')) recos.push({ sev: 'high', title: 'Remove “noindex” if unintended',
-      detail: 'The meta robots tag contains noindex, so this page won’t be indexed.',
-      current: d.robots, recommended: 'index,follow',
-      code: '<meta name="robots" content="index,follow">', codeName: 'robots-meta.html' });
-    // Canonical — the explicit "show current vs what should be there" ask.
-    if (!d.canonical) recos.push({ sev: 'med', title: 'Add a self-referencing canonical',
-      detail: 'No canonical tag. Add one pointing to this page’s preferred URL to consolidate ranking signals.',
-      current: '(none)', recommended: self,
-      code: '<link rel="canonical" href="' + self + '">', codeName: 'canonical.html' });
-    else if (!d.canonicalMatchesUrl) recos.push({ sev: 'med', title: 'Canonical points to a different URL',
-      detail: 'This page canonicalises to another URL, so Google may index that one instead. If that’s intentional (a duplicate), leave it; otherwise point it at this page.',
-      current: d.canonical, recommended: self,
-      code: '<link rel="canonical" href="' + self + '">', codeName: 'canonical.html' });
-    // Images without alt
-    if ((im.missingAlt || 0) > 0) recos.push({ sev: 'med', title: 'Add alt text to images',
-      detail: im.missingAlt + ' image(s) have no alt attribute. Describe each meaningful image (use alt="" for purely decorative ones). See the Images section below for the list.' });
-    // Viewport
-    if (!d.viewport) recos.push({ sev: 'med', title: 'Add a responsive viewport',
-      detail: 'No viewport meta tag — required for a mobile-friendly page.',
-      code: '<meta name="viewport" content="width=device-width, initial-scale=1">', codeName: 'viewport.html' });
-    // Lang
-    if (!d.lang) recos.push({ sev: 'low', title: 'Set the page language',
-      detail: 'The <html> tag has no lang attribute; set it for accessibility and international SEO.',
-      code: '<html lang="en">', codeName: 'lang.html' });
-    // Open Graph
-    var og = d.openGraph || {};
-    if (!og['og:title'] || !og['og:image']) recos.push({ sev: 'low', title: 'Add Open Graph tags',
-      detail: 'Missing og:title/og:image — add them so shared links show a rich preview on social and chat apps.',
-      code: '<meta property="og:title" content="Page title">\n<meta property="og:description" content="Short description">\n<meta property="og:image" content="https://example.com/share-1200x630.jpg">',
-      codeName: 'open-graph.html' });
-    return recos;
   }
 
   window.SEO_TABS.onpage = { init: init };
