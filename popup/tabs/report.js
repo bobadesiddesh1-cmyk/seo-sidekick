@@ -124,7 +124,10 @@
     // Toolbar.
     var actions = el('div', { class: 'sd-actions' });
     actions.appendChild(tbtn(ctx, 'Re-run audit', function () { run(ctx, true); }));
-    if (recos.length) actions.appendChild(tbtn(ctx, 'Download action plan', function () {
+    if (recos.length) actions.appendChild(tbtn(ctx, 'Export CSV (Excel)', function () {
+      window.SEO_CSV.download('seo-sidekick-issues-' + hostOf(d) + '.csv', issuesCsv(d, recos));
+    }));
+    if (recos.length) actions.appendChild(tbtn(ctx, 'Download action plan (.txt)', function () {
       window.SEO_CSV.downloadText('seo-sidekick-action-plan-' + hostOf(d) + '.txt', actionPlanText(d, recos), 'text/plain');
     }));
     if (!state.links) actions.appendChild(tbtn(ctx, state.scanning ? 'Scanning…' : 'Include broken-link scan', function () { scanLinks(ctx); }));
@@ -172,6 +175,28 @@
       L.push('');
     });
     return L.join('\n');
+  }
+
+  // Export every issue + recommendation as an Excel-friendly CSV (one row each).
+  function issuesCsv(d, recos) {
+    var order = { high: 0, med: 1, low: 2 };
+    var PLABEL = { high: 'High', med: 'Medium', low: 'Low' };
+    var list = recos.slice().sort(function (a, b) { return (order[a.sev] || 1) - (order[b.sev] || 1); });
+    var rows = [['#', 'Priority', 'Source', 'Issue', 'Explanation', 'Current value', 'Recommended value', 'Fix code', 'Page URL']];
+    list.forEach(function (r, i) {
+      rows.push([
+        i + 1,
+        PLABEL[r.sev] || 'Medium',
+        r.source || '',
+        r.title || '',
+        r.detail || '',
+        r.current == null ? '' : r.current,
+        r.recommended == null ? '' : r.recommended,
+        r.code || '',
+        d.url || ''
+      ]);
+    });
+    return window.SEO_CSV.toCsv(rows);
   }
 
   window.SEO_TABS.report = { init: init };
