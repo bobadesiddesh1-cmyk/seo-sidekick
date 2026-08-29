@@ -613,3 +613,39 @@ body.fullpage .verdict, body.fullpage .hf-card, body.fullpage .sd-item {
 .rec-code-box > summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--accent); padding: 4px 0; user-select: none; }
 .rec-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .rec-code-box .insp-code { margin: 4px 0 0; }
+
+/* ==========================================================================
+   Cross-tool recommendation engine (shared/recos.js)
+   ========================================================================== */
+.reco-section { margin: 0 0 18px; }
+.reco-shead { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 8px; }
+.reco-stitle { margin: 0; font-size: 15px; font-weight: 750; letter-spacing: -.01em; }
+.reco-count { margin-left: auto; font-size: 11px; font-weight: 800; color: #fff; background: var(--warn); min-width: 20px; text-align: center; padding: 2px 8px; border-radius: 20px; }
+.reco-count.zero { background: var(--ok); }
+.reco-ssub { margin: 0 0 8px; font-size: 11.5px; color: var(--fg-soft); }
+.reco-empty { font-size: 12.5px; color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--bg-soft)); padding: 9px 11px; border-radius: 8px; }
+
+.reco { border: 1px solid var(--border); border-radius: 11px; padding: 11px 13px; margin-bottom: 8px; background: var(--bg-elev); }
+.reco-high { border-left: 4px solid var(--bad); }
+.reco-med  { border-left: 4px solid var(--warn); }
+.reco-low  { border-left: 4px solid var(--accent); }
+.reco-head { display: flex; align-items: center; gap: 8px; }
+.reco-sev { flex: 0 0 auto; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 6px; color: #fff; }
+.reco-sev.high { background: var(--bad); }
+.reco-sev.med { background: var(--warn); }
+.reco-sev.low { background: var(--accent); }
+.reco-t { font-weight: 750; font-size: 13px; color: var(--fg); }
+.reco-detail { font-size: 12px; color: var(--fg-soft); margin-top: 6px; line-height: 1.45; }
+
+.reco-delta { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.reco-line { display: flex; align-items: baseline; gap: 8px; }
+.reco-lab { flex: 0 0 34px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; padding: 2px 0; }
+.reco-lab.cur { color: var(--fg-soft); }
+.reco-lab.rec { color: var(--ok); }
+.reco-val { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; word-break: break-all; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px; color: var(--fg); }
+.reco-val.ok { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); color: var(--ok); }
+
+.reco-code { margin-top: 8px; }
+.reco-code > summary { cursor: pointer; font-size: 11.5px; font-weight: 700; color: var(--accent); user-select: none; padding: 3px 0; }
+.reco-actions { display: flex; gap: 8px; margin: 8px 0 6px; }
+.reco-pre { background: #0d1117; color: #c9d1d9; border: 1px solid #21262d; border-radius: 8px; padding: 11px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 0; }
