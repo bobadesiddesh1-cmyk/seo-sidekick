@@ -649,3 +649,7 @@ body.fullpage .verdict, body.fullpage .hf-card, body.fullpage .sd-item {
 .reco-code > summary { cursor: pointer; font-size: 11.5px; font-weight: 700; color: var(--accent); user-select: none; padding: 3px 0; }
 .reco-actions { display: flex; gap: 8px; margin: 8px 0 6px; }
 .reco-pre { background: #0d1117; color: #c9d1d9; border: 1px solid #21262d; border-radius: 8px; padding: 11px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 0; }
+
+/* Recommendation source chip (used by the Fixes summary tab) */
+.reco-src { margin-left: auto; flex: 0 0 auto; font-size: 9.5px; font-weight: 800; letter-spacing: .02em; color: var(--fg-soft); background: var(--chip-bg); padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+.reco-hint-note { font-size: 11.5px; color: var(--fg-soft); background: var(--bg-soft); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 8px 11px; margin: 0 0 12px; }

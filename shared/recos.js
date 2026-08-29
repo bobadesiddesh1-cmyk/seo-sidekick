@@ -55,10 +55,12 @@
     var el = ctx.el;
     var sev = r.sev || 'med';
     var c = el('div', { class: 'reco reco-' + sev });
-    c.appendChild(el('div', { class: 'reco-head' }, [
+    var head = el('div', { class: 'reco-head' }, [
       el('span', { class: 'reco-sev ' + sev, text: LABEL[sev] || 'Medium' }),
       el('div', { class: 'reco-t', text: r.title })
-    ]));
+    ]);
+    if (r.source) head.appendChild(el('span', { class: 'reco-src', text: r.source }));
+    c.appendChild(head);
     if (r.detail) c.appendChild(el('div', { class: 'reco-detail', text: r.detail }));
 
     if (r.current != null || r.recommended != null) {

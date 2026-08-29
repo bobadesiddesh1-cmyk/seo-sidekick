@@ -160,13 +160,12 @@
 
     // ---- Recommendations (this tab as a recommendation engine) ----
     var sm2 = d.sitemap && d.sitemap.status >= 200 && d.sitemap.status < 400 ? parseSitemap(d.sitemap.body) : null;
-    if (window.SEO_RECO) {
+    if (window.SEO_RECO && window.SEO_RECO_RULES) {
       wrap.appendChild(window.SEO_RECO.section(ctx, 'Recommendations',
         'Prioritised technical & indexability fixes — each with copy-paste code.',
-        buildTechRecos(d, {
-          status: h.status, metaRobots: metaRobots, xRobots: xRobots,
-          canonical: canonical, canonMatches: canonMatches, robotsBlocked: robotsBlocked,
-          sm2: sm2, finalUrl: h.finalUrl, redirected: h.redirected
+        window.SEO_RECO_RULES.tech({
+          onpage: d.onpage, headers: d.headers, robots: d.robots,
+          sitemap: d.sitemap, url: d.url, path: d.path
         }),
         { empty: '✓ No indexability issues — this page can be crawled and indexed.' }));
     }
@@ -247,46 +246,7 @@
     s.textContent = text;
   }
 
-  // ---- Recommendation engine (Tech) ----
-  function selfUrlT(u) { try { var x = new URL(u); x.hash = ''; return x.href; } catch (e) { return u || ''; } }
-  function originOfT(u) { try { return new URL(u).origin; } catch (e) { return ''; } }
-  function buildTechRecos(d, s) {
-    var recos = [];
-    var self = selfUrlT(d.url), origin = originOfT(d.url);
-    if (s.status && (s.status < 200 || s.status >= 400)) recos.push({ sev: 'high', title: 'Fix the HTTP status',
-      detail: 'The page returns HTTP ' + s.status + '. Google only indexes pages that return 200 OK.',
-      current: 'HTTP ' + s.status, recommended: 'HTTP 200' });
-    if (/noindex/i.test(s.metaRobots || '')) recos.push({ sev: 'high', title: 'Remove noindex (meta robots)',
-      detail: 'Meta robots contains noindex — the page is being kept out of the index.',
-      current: s.metaRobots, recommended: 'index,follow',
-      code: '<meta name="robots" content="index,follow">', codeName: 'robots-meta.html' });
-    if (/noindex/i.test(s.xRobots || '')) recos.push({ sev: 'high', title: 'Remove noindex (X-Robots-Tag)',
-      detail: 'The X-Robots-Tag response header contains noindex. Update your server / CDN header config.', current: s.xRobots });
-    if (s.robotsBlocked) recos.push({ sev: 'high', title: 'Allow Googlebot in robots.txt',
-      detail: 'robots.txt disallows crawling ' + (d.path || '/') + ' for Googlebot. Allow it if this page should be indexed.',
-      code: 'User-agent: Googlebot\nAllow: ' + (d.path || '/'), codeName: 'robots-allow.txt' });
-    if (s.canonical && !s.canonMatches) recos.push({ sev: 'med', title: 'Canonical points to a different URL',
-      detail: 'This page canonicalises to another URL, so Google may index that one instead. Point it here if that’s unintended.',
-      current: s.canonical, recommended: self,
-      code: '<link rel="canonical" href="' + self + '">', codeName: 'canonical.html' });
-    else if (!s.canonical) recos.push({ sev: 'low', title: 'Add a self-referencing canonical',
-      detail: 'No canonical tag was found. Add one pointing to this page’s preferred URL.',
-      current: '(none)', recommended: self,
-      code: '<link rel="canonical" href="' + self + '">', codeName: 'canonical.html' });
-    if (!s.sm2) recos.push({ sev: 'med', title: 'Publish an XML sitemap',
-      detail: 'No readable sitemap was found. Create one and declare it in robots.txt so Google can discover your URLs.',
-      code: 'Sitemap: ' + origin + '/sitemap.xml', codeName: 'robots-sitemap.txt' });
-    else if (!s.sm2.isIndex) {
-      var present = s.sm2.locs.some(function (l) { return norm(l) === norm(d.url); });
-      if (!present) recos.push({ sev: 'med', title: 'Add this URL to your sitemap',
-        detail: 'This page wasn’t found in the sitemap. Add it so Google discovers and recrawls it faster.',
-        current: 'not in sitemap', recommended: self });
-    }
-    if (s.redirected && s.finalUrl && norm(s.finalUrl) !== norm(d.url)) recos.push({ sev: 'low', title: 'Link to the final URL directly',
-      detail: 'This URL redirects. Update internal links to point at the final URL to save a redirect hop.',
-      current: d.url, recommended: s.finalUrl });
-    return recos;
-  }
+  // Recommendation logic lives in shared/reco-rules.js (SEO_RECO_RULES.tech).
 
   window.SEO_TABS.tech = { init: init };
 })();

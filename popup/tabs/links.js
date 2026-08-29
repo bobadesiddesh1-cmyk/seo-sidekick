@@ -74,6 +74,14 @@
     var wrap = ctx.qs('#links-results');
     wrap.innerHTML = '';
 
+    // ---- Recommendations ----
+    if (window.SEO_RECO && window.SEO_RECO_RULES) {
+      wrap.appendChild(window.SEO_RECO.section(ctx, 'Recommendations',
+        'Prioritised link fixes for this page.',
+        window.SEO_RECO_RULES.links(data),
+        { empty: '✓ No broken links or redirects to fix.' }));
+    }
+
     if (shown.length === 0) {
       wrap.appendChild(ctx.el('div', { class: 'empty-note',
         text: 'No broken links or redirects found. ' +
