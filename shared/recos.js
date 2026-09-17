@@ -76,6 +76,8 @@
       c.appendChild(d);
     }
 
+    if (r.ai) c.appendChild(aiBlock(ctx, r));
+
     if (r.code) {
       var box = el('details', { class: 'reco-code' });
       box.appendChild(el('summary', { text: r.codeLabel || 'Show fix code' }));
@@ -90,6 +92,75 @@
       c.appendChild(box);
     }
     return c;
+  }
+
+
+  // ---- on-device AI: generate the actual fix for this specific issue ------
+  function aiAvailable() {
+    // SEO_AI caches the result internally and invalidates it on setEngine(),
+    // so there must not be a second cache here.
+    if (!window.SEO_AI) return Promise.resolve('unsupported');
+    return window.SEO_AI.availability();
+  }
+  function aiBlock(ctx, r) {
+    var el = ctx.el;
+    var box = el('div', { class: 'reco-ai' });
+    var genBtn = el('button', { class: 'sd-btn ai-btn' });
+    genBtn.innerHTML = '<span class="ai-spark">\u2728</span><span>Generate with on-device AI</span>';
+    var out = el('div', { class: 'reco-ai-out' });
+    box.appendChild(genBtn); box.appendChild(out);
+
+    // Hide the affordance entirely where the model cannot run.
+    box.style.display = 'none';
+    aiAvailable().then(function (a) {
+      if (a === 'unsupported' || a === 'unavailable') return;
+      box.style.display = '';
+      if (a === 'downloadable' || a === 'downloading') {
+        genBtn.querySelector('span:last-child').textContent = 'Generate (downloads model once)';
+      }
+    });
+
+    genBtn.addEventListener('click', async function () {
+      genBtn.disabled = true;
+      var label = genBtn.querySelector('span:last-child');
+      var prev = label.textContent;
+      label.textContent = 'Generating…';
+      out.innerHTML = '';
+      try {
+        var pc = await ctx.pageContext();
+        if (!pc) throw new Error('Could not read this page for context.');
+        var res = await window.SEO_AI.run(r.ai, pc);
+        renderVariants(ctx, out, res);
+      } catch (e) {
+        out.appendChild(el('div', { class: 'reco-ai-err',
+          text: (e && e.message) ? e.message : 'On-device AI could not generate this.' }));
+      }
+      label.textContent = prev;
+      genBtn.disabled = false;
+    });
+    return box;
+  }
+
+  function renderVariants(ctx, out, res) {
+    var el = ctx.el;
+    if (!res || !res.variants || !res.variants.length) {
+      out.appendChild(el('div', { class: 'reco-ai-err', text: 'The model returned nothing usable — try again.' }));
+      return;
+    }
+    out.appendChild(el('div', { class: 'reco-ai-hd', text: 'Generated on your device · review before using' }));
+    res.variants.forEach(function (v) {
+      var row = el('div', { class: 'ai-var' + (v.ok ? '' : ' warn') });
+      var body = res.isCode || res.isJson
+        ? el('pre', { class: 'ai-var-code', text: v.text })
+        : el('div', { class: 'ai-var-txt', text: v.text });
+      row.appendChild(body);
+      var foot = el('div', { class: 'ai-var-foot' });
+      if (v.note) foot.appendChild(el('span', { class: 'ai-var-note' + (v.ok ? ' ok' : ' warn'),
+        text: (v.ok ? '\u2713 ' : '\u26a0 ') + v.note }));
+      foot.appendChild(btn(ctx, 'Copy', function (b) { copyText(v.text); flash(b, 'Copied \u2713'); }));
+      row.appendChild(foot);
+      out.appendChild(row);
+    });
   }
 
   function section(ctx, title, subtitle, list, opts) {

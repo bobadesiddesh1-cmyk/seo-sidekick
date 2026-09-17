@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SEO Sidekick — Free On-Page & AI SEO Toolkit",
   "short_name": "SEO Sidekick",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "description": "Free SEO toolkit: SSR vs CSR rendering check, schema fixes, AI/GEO, indexability & broken links \u2014 each with copy-paste code.",
   "permissions": [
     "storage",

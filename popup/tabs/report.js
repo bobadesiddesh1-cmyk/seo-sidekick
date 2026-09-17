@@ -12,7 +12,8 @@
   'use strict';
   window.SEO_TABS = window.SEO_TABS || {};
 
-  var state = { ctx: null, running: false, data: null, links: null, scanning: false };
+  var state = { ctx: null, running: false, data: null, links: null, scanning: false,
+               pageType: null, clusters: null, aiBusy: false };
 
   function init(ctx) {
     state.ctx = ctx;
@@ -101,6 +102,7 @@
     add(R.schema(d.schema), 'Schema');
     add(R.render({ raw: d.rawMetrics, rendered: d.rendered, url: d.url }), 'Render');
     if (state.links) add(R.links(state.links), 'Links');
+    add(pageTypeRecos(d), 'Page type');
     // Dedupe: the same fix can be reported by two tools (e.g. a canonical
     // mismatch shows in On-Page and Tech). Collapse them, combining sources.
     var seen = {}, out = [];
@@ -112,6 +114,132 @@
       } else { seen[key] = r; out.push(r); }
     });
     return out;
+  }
+
+
+  // ---- Page-type awareness ------------------------------------------------
+  // Once the model classifies the page, we expect the schema that page type
+  // actually needs, instead of checking every page identically.
+  var EXPECTED_SCHEMA = {
+    product: { types: ['Product'], label: 'Product' },
+    article: { types: ['Article', 'NewsArticle', 'BlogPosting'], label: 'Article' },
+    localbusiness: { types: ['LocalBusiness', 'Organization'], label: 'LocalBusiness' },
+    homepage: { types: ['Organization', 'WebSite'], label: 'Organization + WebSite' },
+    category: { types: ['ItemList', 'CollectionPage'], label: 'ItemList' },
+    contact: { types: ['Organization', 'LocalBusiness'], label: 'Organization' }
+  };
+  function pageTypeRecos(d) {
+    var pt = state.pageType;
+    if (!pt || !pt.type) return [];
+    var exp = EXPECTED_SCHEMA[pt.type];
+    if (!exp) return [];
+    var have = (d.schema && d.schema.allTypes) || [];
+    var hit = exp.types.some(function (t) { return have.indexOf(t) !== -1; });
+    if (hit) return [];
+    return [{
+      sev: pt.type === 'product' || pt.type === 'localbusiness' ? 'high' : 'med',
+      title: 'This looks like a ' + pt.type + ' page but has no ' + exp.label + ' schema',
+      detail: (pt.why ? pt.why + ' ' : '') +
+        'Pages of this type are expected to carry ' + exp.types.join(' or ') +
+        ' structured data — without it you cannot win the rich results this page type qualifies for.',
+      current: have.length ? ('schema found: ' + have.slice(0, 6).join(', ')) : 'no schema on the page',
+      recommended: 'add ' + exp.label + ' schema'
+    }];
+  }
+
+  // ---- Root-cause clustering ----------------------------------------------
+  // Grouping is deterministic (reliable); the model only narrates the fix.
+  var THEMES = [
+    { key: 'render', label: 'Client-side rendering', test: function (r) { return r.source === 'Render' || /JavaScript/i.test(r.title); } },
+    { key: 'index', label: 'Indexability & crawling', test: function (r) { return /noindex|robots\.txt|HTTP status|sitemap|canonical/i.test(r.title); } },
+    { key: 'meta', label: 'Titles, meta & snippets', test: function (r) { return /title|meta description|Open Graph|H1/i.test(r.title); } },
+    { key: 'schema', label: 'Structured data', test: function (r) { return r.source === 'Schema' || /schema|JSON-LD/i.test(r.title); } },
+    { key: 'geo', label: 'AI search readiness', test: function (r) { return r.source === 'AI/GEO' || /AI crawler|llms\.txt/i.test(r.title); } },
+    { key: 'intl', label: 'International (hreflang)', test: function (r) { return r.source === 'Hreflang'; } },
+    { key: 'content', label: 'Content quality', test: function (r) { return /alt text|writing|paragraph|takeaway|heading/i.test(r.title); } },
+    { key: 'links', label: 'Links', test: function (r) { return r.source === 'Links' || /broken link|redirect/i.test(r.title); } }
+  ];
+  var SEVW = { high: 3, med: 2, low: 1 };
+  function clusterRecos(recos) {
+    var used = {}, groups = [];
+    THEMES.forEach(function (t) {
+      var items = recos.filter(function (r, i) { return !used[i] && t.test(r); });
+      recos.forEach(function (r, i) { if (!used[i] && t.test(r)) used[i] = true; });
+      if (items.length >= 2) groups.push({ label: t.label, items: items,
+        weight: items.reduce(function (a, r) { return a + (SEVW[r.sev] || 1); }, 0) });
+    });
+    groups.sort(function (a, b) { return b.weight - a.weight; });
+    return groups.slice(0, 5);
+  }
+
+  async function runAiInsight(ctx) {
+    if (state.aiBusy) return;
+    state.aiBusy = true; render(ctx);
+    try {
+      var pc = await ctx.pageContext();
+      if (!pc) throw new Error('no context');
+      // 1) classify the page
+      try {
+        var t = await window.SEO_AI.run('pageType', pc);
+        if (t.variants && t.variants[0]) {
+          var j = JSON.parse(t.variants[0].text);
+          if (j && j.type) state.pageType = { type: String(j.type).toLowerCase(), confidence: j.confidence || '', why: j.why || '' };
+        }
+      } catch (e) { /* classification is best-effort */ }
+      // 2) narrate the deterministic clusters
+      try {
+        var groups = clusterRecos(aggregate(state.data));
+        if (groups.length) {
+          var text = groups.map(function (g, i) {
+            return (i + 1) + '. ' + g.label + ': ' + g.items.map(function (r) { return r.title; }).join('; ');
+          }).join('\n');
+          var c = await window.SEO_AI.run('cluster', { url: state.data.url, clusterText: text });
+          groups.forEach(function (g, i) { g.fix = (c.variants[i] && c.variants[i].text) || ''; });
+        }
+        state.clusters = groups;
+      } catch (e) { state.clusters = clusterRecos(aggregate(state.data)); }
+    } catch (e) { /* surfaced by the empty state below */ }
+    state.aiBusy = false; render(ctx);
+  }
+
+  function renderAiInsight(ctx, wrap, recos) {
+    var el = ctx.el;
+    var sec = el('div', { class: 'ai-insight' });
+    var head = el('div', { class: 'ai-insight-hd' }, [
+      el('span', { class: 'ai-spark', text: '✨' }),
+      el('div', {}, [
+        el('b', { text: 'AI insight' }),
+        el('small', { text: 'Runs entirely on your device — page type + what is actually causing these issues.' })
+      ])
+    ]);
+    sec.appendChild(head);
+
+    if (state.pageType) {
+      var pt = state.pageType;
+      sec.appendChild(el('div', { class: 'ai-ptype' }, [
+        el('span', { class: 'ai-ptype-tag', text: pt.type }),
+        el('span', { class: 'ai-ptype-why', text: (pt.why || '') + (pt.confidence ? ' (' + pt.confidence + ' confidence)' : '') })
+      ]));
+    }
+    (state.clusters || []).forEach(function (g) {
+      var box = el('div', { class: 'ai-cluster' });
+      box.appendChild(el('div', { class: 'ai-cluster-hd' }, [
+        el('b', { text: g.label }),
+        el('span', { class: 'ai-cluster-n', text: g.items.length + ' issues' })
+      ]));
+      if (g.fix) box.appendChild(el('div', { class: 'ai-cluster-fix', text: '→ ' + g.fix }));
+      box.appendChild(el('div', { class: 'ai-cluster-items',
+        text: g.items.map(function (r) { return r.title; }).join(' · ') }));
+      sec.appendChild(box);
+    });
+
+    if (!state.pageType && !state.clusters) {
+      sec.appendChild(el('div', { class: 'ai-insight-cta' }, [
+        tbtn(ctx, state.aiBusy ? 'Analysing…' : 'Analyse this page with on-device AI',
+          function () { runAiInsight(ctx); })
+      ]));
+    }
+    wrap.appendChild(sec);
   }
 
   function render(ctx) {
@@ -146,6 +274,18 @@
 
     if (!state.links) wrap.appendChild(el('div', { class: 'reco-hint-note',
       text: 'Tip: broken-link checking is off by default because it’s slower. Click “Include broken-link scan” to fold link fixes into this list.' }));
+
+    // AI insight (page type + root causes) — only where on-device AI can run.
+    if (window.SEO_AI && window.SEO_RECO) {
+      window.SEO_AI.availability().then(function (a) {
+        if (a === 'unsupported' || a === 'unavailable') return;
+        if (ctx.qs('#report-results .ai-insight')) return;
+        var holder = ctx.el('div');
+        renderAiInsight(ctx, holder, recos);
+        var anchor = ctx.qs('#report-results .reco-section');
+        if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(holder.firstChild, anchor);
+      });
+    }
 
     // The consolidated, prioritised action list (High → Low), each tagged by tool.
     wrap.appendChild(window.SEO_RECO.section(ctx, 'Action plan',

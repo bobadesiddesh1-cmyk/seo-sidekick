@@ -18,6 +18,7 @@
  *   'analyze-content' -> Module 8  (inject/content-analyzer.js) — GEO + content intel
  *   'analyze-schema'  -> Schema tab (inject/schema-analyzer.js) — rich-result eligibility
  *   'analyze-rendered'-> Render tab (inject/render-extract.js) — post-JS DOM metrics
+ *   'page-context'    -> AI layer (inject/page-context.js) — compact extract for prompts
  *   'fetch-resource'  -> network fetch (robots.txt/llms.txt/sitemap/headers), no tab
  *   'highlight'       -> Module 3  (content/highlighter.js) action: on|off|toggle|counts|state
  */
@@ -55,6 +56,7 @@ function callOnpageAnalyzer() { return self.__SEO_runOnpageAnalyzer(); }
 function callContentAnalyzer() { return self.__SEO_runContentAnalyzer(); }
 function callSchemaAnalyzer() { return self.__SEO_runSchemaAnalyzer(); }
 function callRenderExtract() { return self.__SEO_extractRendered(); }
+function callPageContext() { return self.__SEO_pageContext(); }
 function callHighlightEnable() { return self.__SEO_highlighter.enable(); }
 function callHighlightDisable() { return self.__SEO_highlighter.disable(); }
 function callHighlightToggle() { return self.__SEO_highlighter.toggle(); }
@@ -306,6 +308,12 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
           await injectFile(tab.id, 'inject/schema-analyzer.js');
           var schema = await callInPage(tab.id, callSchemaAnalyzer);
           sendResponse({ ok: true, data: schema });
+          return;
+        }
+        case 'page-context': {
+          await injectFile(tab.id, 'inject/page-context.js');
+          var pctx = await callInPage(tab.id, callPageContext);
+          sendResponse({ ok: true, data: pctx });
           return;
         }
         case 'analyze-rendered': {
