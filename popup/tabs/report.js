@@ -21,6 +21,14 @@
   }
 
   function ok(r) { return r && r.ok ? r.data : null; }
+  // Reuse the page GET already made for headers — no extra request.
+  function rawMetricsFrom(httpRes, url) {
+    try {
+      if (!httpRes || !httpRes.body || !window.__SEO_extractRenderMetrics) return null;
+      var doc = new DOMParser().parseFromString(httpRes.body, 'text/html');
+      return window.__SEO_extractRenderMetrics(doc, url);
+    } catch (e) { return null; }
+  }
   function activeUrl(ctx) { return ctx.activeTab && ctx.activeTab.url ? ctx.activeTab.url : ''; }
   function setStatus(ctx, text, isErr) {
     var s = ctx.qs('#report-status');
@@ -37,7 +45,7 @@
     try { var u = new URL(url); origin = u.origin; path = u.pathname || '/'; } catch (e) {}
 
     state.running = true;
-    setStatus(ctx, 'Auditing the page — on-page, schema, tech, AI & hreflang', false);
+    setStatus(ctx, 'Auditing the page — on-page, schema, tech, AI, hreflang & rendering', false);
     ctx.qs('#report-results').innerHTML = '';
 
     var res = await Promise.all([
@@ -47,7 +55,8 @@
       ctx.send({ type: 'fetch-resource', url: url, method: 'GET' }),
       ctx.send({ type: 'fetch-resource', url: origin + '/robots.txt' }),
       ctx.send({ type: 'fetch-resource', url: origin + '/llms.txt', method: 'HEAD' }),
-      ctx.send({ type: 'check-hreflang' })
+      ctx.send({ type: 'check-hreflang' }),
+      ctx.send({ type: 'analyze-rendered' })
     ]);
     var robots = ok(res[4]);
     var sitemapUrl = origin + '/sitemap.xml';
@@ -59,7 +68,8 @@
     state.data = {
       url: url, path: path,
       onpage: ok(res[0]), schema: ok(res[1]), content: ok(res[2]),
-      headers: ok(res[3]), robots: robots, llms: ok(res[5]), hreflang: ok(res[6]), sitemap: sitemap
+      headers: ok(res[3]), robots: robots, llms: ok(res[5]), hreflang: ok(res[6]), sitemap: sitemap,
+      rendered: ok(res[7]), rawMetrics: rawMetricsFrom(ok(res[3]), url)
     };
     render(ctx);
   }
@@ -89,6 +99,7 @@
     add(R.ai({ content: d.content, robots: d.robots, llms: d.llms, url: d.url, path: d.path }), 'AI/GEO');
     add(R.hreflang(d.hreflang), 'Hreflang');
     add(R.schema(d.schema), 'Schema');
+    add(R.render({ raw: d.rawMetrics, rendered: d.rendered, url: d.url }), 'Render');
     if (state.links) add(R.links(state.links), 'Links');
     // Dedupe: the same fix can be reported by two tools (e.g. a canonical
     // mismatch shows in On-Page and Tech). Collapse them, combining sources.

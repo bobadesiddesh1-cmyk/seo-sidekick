@@ -59,6 +59,12 @@
       </span>
       <span class="tab-label">Tech</span>
     </button>
+    <button class="tab" data-tab="render" role="tab" aria-selected="false" title="Server vs client rendering (SSR/CSR)">
+      <span class="tab-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="7" rx="2"></rect><rect x="2" y="14" width="20" height="7" rx="2"></rect><path d="M6 6.5h.01M6 17.5h.01"></path></svg>
+      </span>
+      <span class="tab-label">Render</span>
+    </button>
     <button class="tab" data-tab="hreflang" role="tab" aria-selected="false" title="Hreflang Validator">
       <span class="tab-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>
@@ -149,6 +155,16 @@
       <div id="tech-results" class="results"></div>
     </section>
 
+    <!-- Render: SSR vs CSR -->
+    <section class="panel" data-panel="render">
+      <div class="panel-head">
+        <h2>Rendering — Server vs Client</h2>
+        <p class="muted">Compares the raw HTML your server returns against the DOM after JavaScript runs — so you can see what a non-rendering crawler (and every AI bot) actually gets.</p>
+      </div>
+      <div id="render-status" class="status" role="status"></div>
+      <div id="render-results" class="results"></div>
+    </section>
+
     <!-- Module 2: Hreflang -->
     <section class="panel" data-panel="hreflang">
       <div class="panel-head">
@@ -229,6 +245,7 @@
   <script src="../shared/csv.js"></script>
   <script src="../shared/iso-languages.js"></script>
   <script src="../shared/pixel-measure.js"></script>
+  <script src="../inject/render-extract.js"></script>
   <script src="../shared/reco-rules.js"></script>
   <script src="../shared/recos.js"></script>
   <!-- tab modules -->
@@ -238,6 +255,7 @@
   <script src="tabs/schema.js"></script>
   <script src="tabs/ai.js"></script>
   <script src="tabs/tech.js"></script>
+  <script src="tabs/render.js"></script>
   <script src="tabs/hreflang.js"></script>
   <script src="tabs/highlight.js"></script>
   <script src="tabs/preview.js"></script>

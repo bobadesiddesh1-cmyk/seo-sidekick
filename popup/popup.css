@@ -68,7 +68,7 @@ body.fullpage {
 }
 body.fullpage .app-header { padding: 16px 28px 14px; }
 body.fullpage .tabs { padding: 8px 24px; }
-body.fullpage .tab { font-size: 12px; padding: 9px 6px; }
+body.fullpage .tab { font-size: 12px; padding: 9px 4px; min-width: 42px; }
 body.fullpage .panels { padding: 20px 28px 12px; max-width: 100%; }
 body.fullpage .panel-head h2 { font-size: 18px; }
 body.fullpage .results { font-size: 13.5px; }
@@ -121,7 +121,7 @@ body.fullpage .verdict, body.fullpage .hf-card, body.fullpage .sd-item {
   position: sticky; top: 0; z-index: 5;
 }
 .tab {
-  flex: 1 0 auto; min-width: 46px;
+  flex: 1 1 auto; min-width: 42px;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   padding: 6px 2px 5px;
   border: none; background: transparent; cursor: pointer;
@@ -459,7 +459,8 @@ body.fullpage .verdict, body.fullpage .hf-card, body.fullpage .sd-item {
 /* ==========================================================================
    Schema tab
    ========================================================================== */
-.panel[data-panel="schema"] .results { display: block; }
+.panel[data-panel="schema"] .results,
+.panel[data-panel="render"] .results { display: block; }
 
 /* Scorecards */
 .sc-grid {
@@ -653,3 +654,30 @@ body.fullpage .verdict, body.fullpage .hf-card, body.fullpage .sd-item {
 /* Recommendation source chip (used by the Fixes summary tab) */
 .reco-src { margin-left: auto; flex: 0 0 auto; font-size: 9.5px; font-weight: 800; letter-spacing: .02em; color: var(--fg-soft); background: var(--chip-bg); padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
 .reco-hint-note { font-size: 11.5px; color: var(--fg-soft); background: var(--bg-soft); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 8px 11px; margin: 0 0 12px; }
+
+/* ==========================================================================
+   Render tab — SSR vs CSR
+   ========================================================================== */
+.rnd-meter { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+.rnd-meter-top { display: flex; align-items: baseline; gap: 9px; }
+.rnd-meter-top b { font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: var(--fg); }
+.rnd-meter-top span { font-size: 12.5px; color: var(--fg-soft); }
+.rnd-bar { height: 10px; border-radius: 6px; background: var(--chip-bg); overflow: hidden; margin: 9px 0 7px; }
+.rnd-bar-fill { height: 100%; border-radius: 6px; transition: width .4s ease; }
+.rnd-bar-fill.ok { background: var(--ok); }
+.rnd-bar-fill.warn { background: var(--warn); }
+.rnd-bar-fill.bad { background: var(--bad); }
+.rnd-meter-sub { font-size: 11.5px; color: var(--fg-soft); }
+
+.rnd-tbl { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.rnd-row { display: grid; grid-template-columns: 110px 1fr 1fr; gap: 0; border-top: 1px solid var(--border); }
+.rnd-row:first-child { border-top: none; }
+.rnd-row.head { background: var(--bg-soft); font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-soft); }
+.rnd-c { padding: 8px 10px; font-size: 11.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rnd-lbl { color: var(--fg-soft); font-weight: 600; border-right: 1px solid var(--border); }
+.rnd-row.head .rnd-lbl { color: var(--fg-soft); }
+.rnd-raw { border-right: 1px solid var(--border); font-family: "SF Mono", Menlo, Consolas, monospace; }
+.rnd-dom { font-family: "SF Mono", Menlo, Consolas, monospace; }
+.rnd-row.t-bad .rnd-raw { color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, transparent); font-weight: 700; }
+.rnd-row.t-warn .rnd-raw { color: var(--warn); background: color-mix(in srgb, var(--warn) 8%, transparent); }
+.rnd-row.t-ok .rnd-raw { color: var(--ok); }
