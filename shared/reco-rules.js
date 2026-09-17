@@ -246,8 +246,106 @@
     return out;
   }
 
+  // ---- Rendering: SSR vs CSR ---------------------------------------------
+  // Compares raw server HTML against the post-JavaScript DOM. Shared by the
+  // Render tab (for its UI) and the rule below, so both agree.
+  function renderAnalyze(raw, rendered) {
+    if (!raw || !rendered) return null;
+    function n(v) { return typeof v === 'number' && isFinite(v) ? v : 0; }
+    var rawW = n(raw.words && raw.words.body), domW = n(rendered.words && rendered.words.body);
+    var coverage = domW > 0 ? Math.max(0, Math.min(100, Math.round(rawW / domW * 100)))
+                            : (rawW > 0 ? 100 : 0);
+
+    var rawH1 = n(raw.headingCounts && raw.headingCounts.h1);
+    var domH1 = n(rendered.headingCounts && rendered.headingCounts.h1);
+
+    var missing = {
+      title: !raw.title && !!rendered.title,
+      metaDescription: !raw.metaDescription && !!rendered.metaDescription,
+      canonical: !raw.canonical && !!rendered.canonical,
+      h1: rawH1 === 0 && domH1 > 0,
+      jsonLd: n(raw.jsonLd && raw.jsonLd.blocks) === 0 && n(rendered.jsonLd && rendered.jsonLd.blocks) > 0
+    };
+    var changed = {
+      title: !!raw.title && !!rendered.title && raw.title !== rendered.title,
+      canonical: !!raw.canonical && !!rendered.canonical && raw.canonical !== rendered.canonical
+    };
+    var criticalMissing = 0;
+    Object.keys(missing).forEach(function (k) { if (missing[k]) criticalMissing++; });
+
+    var deltas = {
+      words: domW - rawW,
+      links: n(rendered.links && rendered.links.total) - n(raw.links && raw.links.total),
+      headings: n(rendered.headingTotal) - n(raw.headingTotal),
+      images: n(rendered.images && rendered.images.total) - n(raw.images && raw.images.total),
+      jsonLd: n(rendered.jsonLd && rendered.jsonLd.blocks) - n(raw.jsonLd && raw.jsonLd.blocks),
+      domNodes: n(rendered.domNodes) - n(raw.domNodes)
+    };
+
+    var verdict, label, tone;
+    if (coverage >= 85 && criticalMissing === 0) { verdict = 'ssr'; label = 'Server-rendered'; tone = 'ok'; }
+    else if (coverage <= 30 || criticalMissing >= 3) { verdict = 'csr'; label = 'Client-rendered'; tone = 'bad'; }
+    else { verdict = 'hybrid'; label = 'Hybrid rendering'; tone = 'warn'; }
+
+    return {
+      coverage: coverage, verdict: verdict, label: label, tone: tone,
+      missing: missing, changed: changed, deltas: deltas,
+      rawWords: rawW, domWords: domW, criticalMissing: criticalMissing
+    };
+  }
+
+  // Most AI crawlers (GPTBot, ClaudeBot, PerplexityBot, CCBot…) do not execute
+  // JavaScript at all. Googlebot does, but on a deferred second pass.
+  var AI_NOTE = 'Googlebot does render JavaScript, but on a delayed second pass — and most AI crawlers (GPTBot, ClaudeBot, PerplexityBot) never run JS at all, so they only ever see the raw HTML.';
+
+  function render(d) {
+    var a = renderAnalyze(d && d.raw, d && d.rendered);
+    if (!a) return [];
+    var recos = [];
+
+    if (a.missing.title) recos.push({ sev: 'high', title: 'Page title is added by JavaScript',
+      detail: 'The <title> is missing from the raw HTML and only appears after JS runs. ' + AI_NOTE,
+      current: '(no title in raw HTML)', recommended: d.rendered.title });
+    else if (a.changed.title) recos.push({ sev: 'med', title: 'Title is rewritten by JavaScript',
+      detail: 'The server sends one title and JavaScript replaces it. Crawlers may index the server version.',
+      current: d.raw.title, recommended: d.rendered.title });
+
+    if (a.missing.metaDescription) recos.push({ sev: 'high', title: 'Meta description is added by JavaScript',
+      detail: 'No meta description in the raw HTML — non-rendering crawlers and most social/AI bots will never see it. Render it server-side.',
+      current: '(none in raw HTML)', recommended: d.rendered.metaDescription });
+
+    if (a.missing.canonical) recos.push({ sev: 'high', title: 'Canonical is injected by JavaScript',
+      detail: 'The canonical link only exists after JS runs. Google may not honour a JS-injected canonical reliably — emit it in the server HTML.',
+      current: '(none in raw HTML)', recommended: d.rendered.canonical });
+    else if (a.changed.canonical) recos.push({ sev: 'high', title: 'Canonical is rewritten by JavaScript',
+      detail: 'The server and the rendered page disagree on the canonical URL. Make them match.',
+      current: d.raw.canonical, recommended: d.rendered.canonical });
+
+    if (a.missing.h1) recos.push({ sev: 'high', title: 'H1 is rendered client-side',
+      detail: 'No H1 in the raw HTML. Your main heading is invisible to any crawler that does not execute JavaScript.' });
+
+    if (a.missing.jsonLd) recos.push({ sev: 'high', title: 'Structured data is injected by JavaScript',
+      detail: 'All JSON-LD on this page is added after JS runs. Many structured-data consumers (and AI crawlers) parse raw HTML only, so your schema is invisible to them. Emit JSON-LD server-side.' });
+
+    if (a.coverage < 50) recos.push({ sev: 'high', title: 'Most of the content needs JavaScript to appear',
+      detail: 'Only ' + a.coverage + '% of the page text is in the raw HTML (' + a.rawWords + ' of ' + a.domWords + ' words). ' + AI_NOTE,
+      current: a.coverage + '% server-rendered', recommended: 'Server-render or pre-render the main content' });
+    else if (a.coverage < 85) recos.push({ sev: 'med', title: 'Part of the content needs JavaScript',
+      detail: a.coverage + '% of the page text is in the raw HTML. The remainder only appears after JS — fine for Google, invisible to non-rendering AI crawlers.',
+      current: a.coverage + '% server-rendered', recommended: '85%+ server-rendered' });
+
+    if (a.deltas.links > 20) recos.push({ sev: 'med', title: 'Internal links are added by JavaScript',
+      detail: a.deltas.links + ' links only exist after JS runs. Crawlers that do not render may never discover those pages — make key navigation real <a href> links in the server HTML.' });
+
+    if (a.deltas.images > 5) recos.push({ sev: 'low', title: 'Images are loaded client-side',
+      detail: a.deltas.images + ' images appear only after JS. Use real <img src> (with loading="lazy") so image search can find them.' });
+
+    return recos;
+  }
+
   window.SEO_RECO_RULES = {
     onpage: onpage, tech: tech, ai: ai, hreflang: hreflang, links: links, schema: schema,
-    _util: { selfUrl: selfUrl, originOf: originOf, pathOf: pathOf }
+    render: render,
+    _util: { selfUrl: selfUrl, originOf: originOf, pathOf: pathOf, renderAnalyze: renderAnalyze }
   };
 })();
