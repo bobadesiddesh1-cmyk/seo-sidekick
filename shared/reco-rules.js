@@ -75,20 +75,20 @@
     var t = d.title || {}, md = d.metaDescription || {}, hc = d.headingCounts || {}, im = d.images || {};
     if (!t.length) recos.push({ sev: 'high', title: 'Add a page <title>',
       detail: 'This page has no title tag — the single strongest on-page ranking signal.',
-      code: '<title>Primary keyword — Brand</title>', codeName: 'title.html' });
+      code: '<title>Primary keyword — Brand</title>', codeName: 'title.html', ai: 'titleWrite' });
     else if (t.length > 60) recos.push({ sev: 'med', title: 'Shorten the title',
-      detail: 'The title is ' + t.length + ' characters; keep it ~50–60 so Google doesn’t truncate it.', current: t.text });
+      detail: 'The title is ' + t.length + ' characters; keep it ~50–60 so Google doesn’t truncate it.', current: t.text, ai: 'titleShorten' });
     else if (t.length < 15) recos.push({ sev: 'low', title: 'Expand the title',
-      detail: 'The title is only ' + t.length + ' characters — add your primary keyword and brand.', current: t.text });
+      detail: 'The title is only ' + t.length + ' characters — add your primary keyword and brand.', current: t.text, ai: 'titleWrite' });
     if (!md.length) recos.push({ sev: 'high', title: 'Add a meta description',
       detail: 'No meta description — write a 70–160 character summary with your key term to lift click-through.',
-      code: '<meta name="description" content="A compelling 150–160 character summary that includes your primary keyword.">', codeName: 'meta-description.html' });
+      code: '<meta name="description" content="A compelling 150–160 character summary that includes your primary keyword.">', codeName: 'meta-description.html', ai: 'metaDescription' });
     else if (md.length > 160) recos.push({ sev: 'med', title: 'Trim the meta description',
-      detail: 'It’s ' + md.length + ' characters; keep it ≤160 so it isn’t cut off in search.', current: md.text });
+      detail: 'It’s ' + md.length + ' characters; keep it ≤160 so it isn’t cut off in search.', current: md.text, ai: 'metaDescription' });
     else if (md.length < 70) recos.push({ sev: 'low', title: 'Lengthen the meta description',
-      detail: 'It’s only ' + md.length + ' characters; 70–160 gives Google more to show.', current: md.text });
+      detail: 'It’s only ' + md.length + ' characters; 70–160 gives Google more to show.', current: md.text, ai: 'metaDescription' });
     if ((hc.h1 || 0) === 0) recos.push({ sev: 'high', title: 'Add exactly one H1',
-      detail: 'No H1 found — every page needs one clear top-level heading.', code: '<h1>Your main page heading</h1>', codeName: 'h1.html' });
+      detail: 'No H1 found — every page needs one clear top-level heading.', code: '<h1>Your main page heading</h1>', codeName: 'h1.html', ai: 'h1' });
     else if ((hc.h1 || 0) > 1) recos.push({ sev: 'med', title: 'Use a single H1',
       detail: 'Found ' + hc.h1 + ' H1 tags; keep one H1 and demote the rest to H2/H3.' });
     if (/noindex/i.test(d.robots || '')) recos.push({ sev: 'high', title: 'Remove “noindex” if unintended',
@@ -101,7 +101,7 @@
       detail: 'This page canonicalises to another URL, so Google may index that one instead. If that’s intentional (a duplicate), leave it; otherwise point it at this page.',
       current: d.canonical, recommended: self, code: '<link rel="canonical" href="' + self + '">', codeName: 'canonical.html' });
     if ((im.missingAlt || 0) > 0) recos.push({ sev: 'med', title: 'Add alt text to images',
-      detail: im.missingAlt + ' image(s) have no alt attribute. Describe each meaningful image (use alt="" for purely decorative ones).' });
+      detail: im.missingAlt + ' image(s) have no alt attribute. Describe each meaningful image (use alt="" for purely decorative ones).', ai: 'altText' });
     if (!d.viewport) recos.push({ sev: 'med', title: 'Add a responsive viewport',
       detail: 'No viewport meta tag — required for a mobile-friendly page.',
       code: '<meta name="viewport" content="width=device-width, initial-scale=1">', codeName: 'viewport.html' });
@@ -110,7 +110,7 @@
     var og = d.openGraph || {};
     if (!og['og:title'] || !og['og:image']) recos.push({ sev: 'low', title: 'Add Open Graph tags',
       detail: 'Missing og:title/og:image — add them so shared links show a rich preview on social and chat apps.',
-      code: '<meta property="og:title" content="Page title">\n<meta property="og:description" content="Short description">\n<meta property="og:image" content="https://example.com/share-1200x630.jpg">', codeName: 'open-graph.html' });
+      code: '<meta property="og:title" content="Page title">\n<meta property="og:description" content="Short description">\n<meta property="og:image" content="https://example.com/share-1200x630.jpg">', codeName: 'open-graph.html', ai: 'openGraph' });
     return recos;
   }
 
@@ -160,8 +160,19 @@
   function ai(d) {
     if (!d) return [];
     var recos = [], c = d.content || {}, path = d.path || pathOf(d.url);
+    var SIGNAL_AI = [
+      [/tl;?dr|key takeaways|summary/i, 'tldr'],
+      [/question-style headings/i, 'questionHeadings'],
+      [/faq or howto schema/i, 'faqSchema'],
+      [/scannable paragraphs/i, 'simplify']
+    ];
     (c.extractability && c.extractability.signals || []).forEach(function (s) {
-      if (!s.ok) recos.push({ sev: 'med', title: s.label, detail: s.hint || 'Improve this to be more extractable by AI answer engines.' });
+      if (s.ok) return;
+      var task = '';
+      SIGNAL_AI.forEach(function (m) { if (!task && m[0].test(s.label || '')) task = m[1]; });
+      var r = { sev: 'med', title: s.label, detail: s.hint || 'Improve this to be more extractable by AI answer engines.' };
+      if (task) r.ai = task;
+      recos.push(r);
     });
     if (d.robots && d.robots.body) {
       var parsed = parseRobots(d.robots.body);
@@ -176,7 +187,7 @@
     }
     var r = c.readability;
     if (r && r.grade > 12) recos.push({ sev: 'low', title: 'Simplify the writing',
-      detail: 'Reading grade level is ' + r.grade + '; aim for ≤12 so AI answers can extract clean, quotable sentences.' });
+      detail: 'Reading grade level is ' + r.grade + '; aim for ≤12 so AI answers can extract clean, quotable sentences.', ai: 'simplify' });
     var hasLlms = d.llms && d.llms.status >= 200 && d.llms.status < 400;
     if (!hasLlms) recos.push({ sev: 'low', title: 'Consider adding an llms.txt',
       detail: 'An llms.txt at your site root lets you point AI crawlers to your key content. Optional, but an easy win.' });
@@ -241,7 +252,9 @@
         codeLabel: 'Show corrected JSON-LD', codeName: ('schema-fixed-' + (r.type || 'block')).replace(/[^\w.\-]+/g, '_') + '.html' });
     });
     (sd.gaps || []).forEach(function (g) {
-      out.push({ sev: g.severity === 'high' ? 'med' : 'low', title: g.title, detail: g.why });
+      var r = { sev: g.severity === 'high' ? 'med' : 'low', title: g.title, detail: g.why };
+      if (g.id === 'faq' || g.templateKey === 'FAQPage') r.ai = 'faqSchema';
+      out.push(r);
     });
     return out;
   }

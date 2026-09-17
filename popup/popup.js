@@ -16,8 +16,19 @@
     qs: function (s, r) { return (r || document).querySelector(s); },
     qsa: function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); },
     el: makeEl,
-    escapeHtml: escapeHtml
+    escapeHtml: escapeHtml,
+    pageContext: pageContext
   };
+
+  // Compact page extract for on-device AI prompts. Fetched once per panel load.
+  var _pageCtx = null;
+  function pageContext() {
+    if (_pageCtx) return _pageCtx;
+    _pageCtx = sendBg({ type: 'page-context' }).then(function (r) {
+      return (r && r.ok && r.data) ? r.data : null;
+    });
+    return _pageCtx;
+  }
 
   function sendBg(message) {
     // Always target the analyzed tab explicitly (the side panel persists across
