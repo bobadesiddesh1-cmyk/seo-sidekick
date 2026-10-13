@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SEO report</title>
+  <link rel="icon" href="../icons/icon32.png">
+  <style>
+    .bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+           padding: 10px 20px; background: #12303a; color: #fff; font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+    .bar b { font-size: 13.5px; }
+    .bar span { opacity: .75; font-size: 12px; }
+    .bar .sp { flex: 1; }
+    .bar button { font: inherit; font-weight: 700; border: 1px solid rgba(255,255,255,.35); background: transparent; color: #fff;
+                  border-radius: 8px; padding: 7px 13px; cursor: pointer; }
+    .bar button.pri { background: #0d9488; border-color: #0d9488; }
+    .bar button:hover { filter: brightness(1.12); }
+    .empty { max-width: 560px; margin: 80px auto; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #5b6473; text-align: center; }
+    @media print { .bar { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <b>Client report</b>
+    <span>Review it, then save as PDF or download the HTML to send.</span>
+    <div class="sp"></div>
+    <button id="dl" type="button">Download HTML</button>
+    <button id="pdf" class="pri" type="button">Save as PDF</button>
+  </div>
+  <div id="report"></div>
+  <script src="../shared/storage.js"></script>
+  <script src="../shared/csv.js"></script>
+  <script src="../shared/handoff.js"></script>
+  <script src="report.js"></script>
+</body>
+</html>

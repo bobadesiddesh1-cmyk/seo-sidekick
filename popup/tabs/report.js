@@ -13,7 +13,11 @@
   window.SEO_TABS = window.SEO_TABS || {};
 
   var state = { ctx: null, running: false, data: null, links: null, scanning: false,
-               pageType: null, clusters: null, aiBusy: false };
+               pageType: null, clusters: null, aiBusy: false,
+               // before/after history (shared/history.js)
+               hist: null, histCount: 0, histSaved: false, trend: [], newKeys: {},
+               // hand-off preview currently open: null | 'email' | 'tickets'
+               handoff: null };
 
   function init(ctx) {
     state.ctx = ctx;
@@ -72,6 +76,8 @@
       headers: ok(res[3]), robots: robots, llms: ok(res[5]), hreflang: ok(res[6]), sitemap: sitemap,
       rendered: ok(res[7]), rawMetrics: rawMetricsFrom(ok(res[3]), url)
     };
+    state.histSaved = false;
+    await updateHistory(false);
     render(ctx);
   }
 
@@ -82,7 +88,7 @@
     var resp = await ctx.send({ type: 'scan-links' });
     state.scanning = false;
     setStatus(ctx, '', false);
-    if (resp && resp.ok) { state.links = resp.data; render(ctx); }
+    if (resp && resp.ok) { state.links = resp.data; await updateHistory(true); render(ctx); }
     else setStatus(ctx, (resp && resp.error) ? resp.error : 'Link scan failed.', true);
   }
 
@@ -149,16 +155,8 @@
 
   // ---- Root-cause clustering ----------------------------------------------
   // Grouping is deterministic (reliable); the model only narrates the fix.
-  var THEMES = [
-    { key: 'render', label: 'Client-side rendering', test: function (r) { return r.source === 'Render' || /JavaScript/i.test(r.title); } },
-    { key: 'index', label: 'Indexability & crawling', test: function (r) { return /noindex|robots\.txt|HTTP status|sitemap|canonical/i.test(r.title); } },
-    { key: 'meta', label: 'Titles, meta & snippets', test: function (r) { return /title|meta description|Open Graph|H1/i.test(r.title); } },
-    { key: 'schema', label: 'Structured data', test: function (r) { return r.source === 'Schema' || /schema|JSON-LD/i.test(r.title); } },
-    { key: 'geo', label: 'AI search readiness', test: function (r) { return r.source === 'AI/GEO' || /AI crawler|llms\.txt/i.test(r.title); } },
-    { key: 'intl', label: 'International (hreflang)', test: function (r) { return r.source === 'Hreflang'; } },
-    { key: 'content', label: 'Content quality', test: function (r) { return /alt text|writing|paragraph|takeaway|heading/i.test(r.title); } },
-    { key: 'links', label: 'Links', test: function (r) { return r.source === 'Links' || /broken link|redirect/i.test(r.title); } }
-  ];
+  // Themes are shared with the client email / report (shared/handoff.js).
+  var THEMES = (window.SEO_HANDOFF && window.SEO_HANDOFF.THEMES) || [];
   var SEVW = { high: 3, med: 2, low: 1 };
   function clusterRecos(recos) {
     var used = {}, groups = [];
@@ -199,6 +197,7 @@
         state.clusters = groups;
       } catch (e) { state.clusters = clusterRecos(aggregate(state.data)); }
     } catch (e) { /* surfaced by the empty state below */ }
+    if (state.pageType) await updateHistory(true);
     state.aiBusy = false; render(ctx);
   }
 
@@ -242,6 +241,211 @@
     wrap.appendChild(sec);
   }
 
+  // ---- Before/after history ------------------------------------------------
+  // Every audit of a URL is saved on-device; the next audit is compared with it.
+  // extend=true means the SAME audit grew (link scan / AI page type added), so
+  // the latest snapshot is replaced rather than a new one appended.
+  var BASE_SOURCES = ['On-Page', 'Tech', 'AI/GEO', 'Hreflang', 'Schema', 'Render'];
+  function sameAudit(a, b) {
+    if (!a || !b || a.counts.total !== b.counts.total) return false;
+    if ((a.sources || []).slice().sort().join('|') !== (b.sources || []).slice().sort().join('|')) return false;
+    var ka = a.issues.map(function (i) { return i.k; }).sort().join('\n');
+    var kb = b.issues.map(function (i) { return i.k; }).sort().join('\n');
+    return ka === kb;
+  }
+  async function updateHistory(extend) {
+    var H = window.SEO_HISTORY;
+    if (!H || !state.data) return;
+    try {
+      var sources = BASE_SOURCES.slice();
+      if (state.links) sources.push('Links');
+      if (state.pageType) sources.push('Page type');
+      var snap = H.snapshot(aggregate(state.data), { sources: sources });
+      var arr = await H.list(state.data.url);
+      var last = arr[arr.length - 1];
+      // An unchanged re-check (e.g. the panel reloaded) doesn't push the real
+      // "last check" out of view — it refreshes the latest snapshot instead.
+      var replace = (extend && state.histSaved) || sameAudit(last, snap);
+      var prev = replace ? arr[arr.length - 2] : last;
+      arr = await H.record(state.data.url, snap, replace);
+      state.histSaved = true;
+      state.hist = prev ? H.diff(prev, snap) : null;
+      state.histCount = arr.length;
+      state.trend = arr.slice(-6).map(function (x) { return x.counts.total; });
+      state.newKeys = {};
+      if (state.hist) state.hist.added.forEach(function (i) { state.newKeys[i.k] = true; });
+    } catch (e) { /* history is a nice-to-have; never break the audit */ }
+  }
+  async function clearHistory(ctx) {
+    if (!window.SEO_HISTORY || !state.data) return;
+    await window.SEO_HISTORY.clear(state.data.url);
+    state.hist = null; state.histCount = 0; state.histSaved = false; state.trend = []; state.newKeys = {};
+    await updateHistory(false);
+    render(ctx);
+  }
+  function fmtWhen(ts) {
+    try {
+      return new Date(ts).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+  function renderHistory(ctx, wrap) {
+    var el = ctx.el, h = state.hist;
+    if (!window.SEO_HISTORY || !state.histSaved) return;
+    if (!h) {
+      wrap.appendChild(el('div', { class: 'hist hist-first' }, [
+        el('b', { text: 'First check of this URL saved.' }),
+        el('span', { text: ' Fix a few things, then re-run — you’ll see exactly what was fixed and what’s new.' })
+      ]));
+      return;
+    }
+    var box = el('div', { class: 'hist' });
+    var head = el('div', { class: 'hist-hd' }, [
+      el('b', { text: 'Since last check' }),
+      el('small', { text: fmtWhen(h.prevTs) })
+    ]);
+    var clr = el('button', { class: 'hist-clear', type: 'button', text: 'Clear history' });
+    clr.addEventListener('click', function () { clearHistory(ctx); });
+    head.appendChild(clr);
+    box.appendChild(head);
+
+    box.appendChild(el('div', { class: 'hist-chips' }, [
+      el('span', { class: 'hist-chip fixed', text: '✓ ' + h.fixed.length + ' fixed' }),
+      el('span', { class: 'hist-chip new', text: '▲ ' + h.added.length + ' new' }),
+      el('span', { class: 'hist-chip same', text: h.unchanged + ' still open' })
+    ]));
+    if (state.trend.length > 1) {
+      box.appendChild(el('div', { class: 'hist-trend' }, [
+        el('span', { text: 'Issues over the last ' + state.trend.length + ' checks: ' }),
+        el('b', { text: state.trend.join(' → ') })
+      ]));
+    }
+    if (h.fixed.length) {
+      var fx = el('details', { class: 'hist-list' });
+      fx.appendChild(el('summary', { text: 'Fixed since last check (' + h.fixed.length + ')' }));
+      h.fixed.forEach(function (i) { fx.appendChild(el('div', { class: 'hist-item fixed', text: i.title })); });
+      box.appendChild(fx);
+    }
+    if (h.added.length) {
+      box.appendChild(el('div', { class: 'hist-note', text: 'New issues are tagged “New” in the action plan below.' }));
+    }
+    wrap.appendChild(box);
+  }
+
+  // ---- Hand-off: client report, client email, dev tickets ------------------
+  function handoffPayload(d, recos) {
+    var counts = { high: 0, med: 0, low: 0, total: recos.length };
+    recos.forEach(function (r) { counts[r.sev] = (counts[r.sev] || 0) + 1; });
+    var clean = recos.map(function (r) {
+      return { sev: r.sev, title: r.title, detail: r.detail, source: r.source,
+               current: r.current, recommended: r.recommended, code: r.code };
+    });
+    return { url: d.url, date: Date.now(), recos: clean, counts: counts,
+             pageType: state.pageType, hist: state.hist };
+  }
+  var REPORT_KEEP = 5;
+  async function openReport(d, recos) {
+    var id = 'r' + Date.now().toString(36);
+    var S = window.SEO_STORE;
+    await S.set('seo_report:' + id, handoffPayload(d, recos));
+    var ids = await S.get('seo_report_ids', []);
+    if (!Array.isArray(ids)) ids = [];
+    ids.push(id);
+    if (ids.length > REPORT_KEEP) {
+      var drop = ids.slice(0, ids.length - REPORT_KEEP).map(function (x) { return 'seo_report:' + x; });
+      ids = ids.slice(ids.length - REPORT_KEEP);
+      try { chrome.storage.local.remove(drop); } catch (e) {}
+    }
+    await S.set('seo_report_ids', ids);
+    try { chrome.tabs.create({ url: chrome.runtime.getURL('report/report.html?id=' + id) }); } catch (e) {}
+  }
+  function copyText(t) {
+    try { navigator.clipboard.writeText(t); return; } catch (e) {}
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = t; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+    } catch (e2) {}
+  }
+  function copyBtn(ctx, label, getText) {
+    return tbtn(ctx, label, function (ev) {
+      copyText(getText());
+      var s = ev.currentTarget.querySelector('span'), o = s.textContent;
+      s.textContent = 'Copied ✓';
+      setTimeout(function () { s.textContent = o; }, 1200);
+    });
+  }
+  function renderHandoff(ctx, wrap, d, recos) {
+    var el = ctx.el, HO = window.SEO_HANDOFF;
+    if (!HO) return;
+    var box = el('div', { class: 'handoff' });
+    box.appendChild(el('div', { class: 'handoff-hd' }, [
+      el('b', { text: 'Hand off' }),
+      el('small', { text: 'Share this audit with a client or your developers.' })
+    ]));
+    var row = el('div', { class: 'handoff-row' });
+    row.appendChild(tbtn(ctx, 'Client report (PDF)', function () { openReport(d, recos); }));
+    row.appendChild(tbtn(ctx, state.handoff === 'email' ? 'Hide email' : 'Client email', function () {
+      state.handoff = state.handoff === 'email' ? null : 'email'; render(ctx);
+    }));
+    if (recos.length) row.appendChild(tbtn(ctx, state.handoff === 'tickets' ? 'Hide tickets' : 'Dev tickets', function () {
+      state.handoff = state.handoff === 'tickets' ? null : 'tickets'; render(ctx);
+    }));
+    box.appendChild(row);
+
+    var p = handoffPayload(d, recos), host = hostOf(d);
+    if (state.handoff === 'email') {
+      var m = HO.clientEmail(p);
+      var full = 'Subject: ' + m.subject + '\n\n' + m.body;
+      var pv = el('div', { class: 'handoff-out' });
+      pv.appendChild(el('div', { class: 'handoff-sub' }, [el('span', { text: 'Subject' }), el('b', { text: m.subject })]));
+      pv.appendChild(el('pre', { class: 'handoff-pre', text: m.body }));
+      var acts = el('div', { class: 'handoff-row' }, [
+        copyBtn(ctx, 'Copy email', function () { return full; }),
+        tbtn(ctx, 'Download .txt', function () {
+          window.SEO_CSV.downloadText('seo-email-' + host + '.txt', full, 'text/plain');
+        })
+      ]);
+      var mailto = 'mailto:?subject=' + encodeURIComponent(m.subject) + '&body=' + encodeURIComponent(m.body);
+      if (mailto.length < 1900) {
+        var a = el('a', { class: 'sd-btn', href: mailto, target: '_blank', rel: 'noopener' });
+        a.innerHTML = '<span>Open in email app</span>';
+        acts.appendChild(a);
+      }
+      pv.appendChild(acts);
+      pv.appendChild(el('div', { class: 'handoff-tip', text: 'Plain-language and jargon-free. Replace [Name] and [Your name], and attach the client report.' }));
+      box.appendChild(pv);
+    } else if (state.handoff === 'tickets') {
+      var tickets = HO.devTickets(p);
+      var tv = el('div', { class: 'handoff-out' });
+      tv.appendChild(el('div', { class: 'handoff-row' }, [
+        copyBtn(ctx, 'Copy all (Markdown)', function () { return HO.ticketsMarkdown(tickets); }),
+        tbtn(ctx, 'Download .md', function () {
+          window.SEO_CSV.downloadText('seo-tickets-' + host + '.md', HO.ticketsMarkdown(tickets), 'text/markdown');
+        }),
+        tbtn(ctx, 'Jira CSV', function () {
+          window.SEO_CSV.download('seo-tickets-jira-' + host + '.csv', HO.ticketsJiraCsv(tickets));
+        })
+      ]));
+      var list = el('div', { class: 'tk-list' });
+      tickets.forEach(function (t) {
+        var it = el('details', { class: 'tk' });
+        it.appendChild(el('summary', {}, [
+          el('span', { class: 'tk-pri ' + t.priority.toLowerCase(), text: t.priority }),
+          el('span', { class: 'tk-t', text: t.title })
+        ]));
+        it.appendChild(el('pre', { class: 'handoff-pre', text: t.description }));
+        it.appendChild(el('div', { class: 'handoff-row' }, [
+          copyBtn(ctx, 'Copy ticket', function () { return '# ' + t.title + '\n\n' + t.description; })
+        ]));
+        list.appendChild(it);
+      });
+      tv.appendChild(list);
+      tv.appendChild(el('div', { class: 'handoff-tip', text: 'One ticket per fix, with acceptance criteria. Paste into Linear, GitHub or Notion, or import the CSV into Jira.' }));
+      box.appendChild(tv);
+    }
+    wrap.appendChild(box);
+  }
+
   function render(ctx) {
     var d = state.data, el = ctx.el;
     var wrap = ctx.qs('#report-results');
@@ -249,6 +453,9 @@
     if (!d) return;
 
     var recos = aggregate(d);
+    if (window.SEO_HISTORY) recos.forEach(function (r) {
+      if (state.newKeys[window.SEO_HISTORY.issueKey(r)]) r.isNew = true;
+    });
     var counts = { high: 0, med: 0, low: 0 };
     recos.forEach(function (r) { counts[r.sev] = (counts[r.sev] || 0) + 1; });
 
@@ -259,6 +466,8 @@
     grid.appendChild(scCard(el, counts.med, 'medium', counts.med ? 'warn' : 'muted'));
     grid.appendChild(scCard(el, counts.low, 'low', 'muted'));
     wrap.appendChild(grid);
+
+    renderHistory(ctx, wrap);
 
     // Toolbar.
     var actions = el('div', { class: 'sd-actions' });
@@ -271,6 +480,8 @@
     }));
     if (!state.links) actions.appendChild(tbtn(ctx, state.scanning ? 'Scanning…' : 'Include broken-link scan', function () { scanLinks(ctx); }));
     wrap.appendChild(actions);
+
+    renderHandoff(ctx, wrap, d, recos);
 
     if (!state.links) wrap.appendChild(el('div', { class: 'reco-hint-note',
       text: 'Tip: broken-link checking is off by default because it’s slower. Click “Include broken-link scan” to fold link fixes into this list.' }));
