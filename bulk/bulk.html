@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SEO Sidekick — Site audit</title>
+  <link rel="icon" href="../icons/icon32.png">
+  <link rel="stylesheet" href="../popup/popup.css">
+  <link rel="stylesheet" href="bulk.css">
+</head>
+<body class="fullpage bulk">
+  <header class="bk-head">
+    <div class="bk-brand">
+      <img src="../icons/icon48.png" alt="" width="30" height="30">
+      <div>
+        <b>Site audit</b>
+        <small>Check up to 500 pages from a sitemap or a URL list — the server HTML, as crawlers see it.</small>
+      </div>
+    </div>
+  </header>
+
+  <main class="bk-main">
+    <section class="bk-card" id="bk-input">
+      <div class="bk-seg" role="tablist">
+        <button class="bk-seg-b on" data-mode="sitemap" role="tab" aria-selected="true" type="button">From sitemap</button>
+        <button class="bk-seg-b" data-mode="list" role="tab" aria-selected="false" type="button">Paste URLs</button>
+      </div>
+
+      <div class="bk-mode" data-mode="sitemap">
+        <label class="field-label" for="bk-sitemap">Sitemap URL or site address</label>
+        <input id="bk-sitemap" class="input" type="url" placeholder="https://example.com/sitemap.xml" spellcheck="false">
+        <p class="bk-hint">A site address works too — the sitemap is found from robots.txt or /sitemap.xml. Sitemap indexes are followed.</p>
+      </div>
+      <div class="bk-mode" data-mode="list" hidden>
+        <label class="field-label" for="bk-list">URLs, one per line</label>
+        <textarea id="bk-list" class="input textarea" rows="7" spellcheck="false" placeholder="https://example.com/&#10;https://example.com/pricing"></textarea>
+      </div>
+
+      <div class="bk-row">
+        <label class="bk-max">Max pages
+          <select id="bk-max" class="input">
+            <option>25</option><option selected>100</option><option>250</option><option>500</option>
+          </select>
+        </label>
+        <div class="bk-sp"></div>
+        <button id="bk-start" class="sd-btn bk-primary" type="button"><span>Start audit</span></button>
+        <button id="bk-stop" class="sd-btn" type="button" hidden><span>Stop</span></button>
+      </div>
+      <div id="bk-status" class="status" role="status"></div>
+      <div id="bk-progress" class="bk-progress" hidden><div class="bk-progress-fill"></div></div>
+    </section>
+
+    <section id="bk-results"></section>
+  </main>
+
+  <footer class="bk-foot">No analytics · no telemetry · every request runs from your browser.
+    Built by <a href="https://www.buildwithsiddesh.com/" target="_blank" rel="noopener">BuildWithSiddesh</a></footer>
+
+  <script src="../shared/storage.js"></script>
+  <script src="../shared/csv.js"></script>
+  <script src="../inject/render-extract.js"></script>
+  <script src="bulk.js"></script>
+</body>
+</html>

@@ -500,6 +500,11 @@
       window.SEO_CSV.downloadText('seo-sidekick-action-plan-' + hostOf(d) + '.txt', actionPlanText(d, recos), 'text/plain');
     }));
     if (!state.links) actions.appendChild(tbtn(ctx, state.scanning ? 'Scanning…' : 'Include broken-link scan', function () { scanLinks(ctx); }));
+    actions.appendChild(tbtn(ctx, 'Audit the whole site (bulk)', function () {
+      var site = '';
+      try { site = new URL(d.url).origin; } catch (e) {}
+      try { chrome.tabs.create({ url: chrome.runtime.getURL('bulk/bulk.html' + (site ? '?site=' + encodeURIComponent(site) : '')) }); } catch (e) {}
+    }));
     if (!state.bots && window.SEO_BOTVIEW) actions.appendChild(tbtn(ctx, state.botsBusy ? 'Checking crawlers…' : 'Include crawler check (Googlebot & AI bots)', function () { checkCrawlers(ctx); }));
     wrap.appendChild(actions);
 
