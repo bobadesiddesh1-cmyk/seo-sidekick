@@ -14,6 +14,14 @@ telemetry, no remote config, no sign-in.
 
 ---
 
+## What's new in v2.0
+
+- **Before/after history**: every Fixes-tab audit is saved on your device. The next check of the same URL shows what was fixed, what's new and the issue trend.
+- **Hand off**: a printable client report (Save as PDF / HTML), a jargon-free client email, and one dev ticket per fix with acceptance criteria (Markdown or Jira CSV).
+- **Content behind clicks** (Render tab): load-more buttons, accordions and tabs that load on click, links with no real URL, all highlighted on the live page.
+- **Crawler view** (Render tab): fetches the page as Googlebot, Bingbot, GPTBot, OAI-SearchBot, ClaudeBot and PerplexityBot and compares each with your browser (blocks, bot-only noindex, redirects, content/title/canonical parity).
+- **Site audit** (`bulk/bulk.html`, opened from the Fixes tab): up to 500 pages from a sitemap or a URL list, with site-wide duplicates, a top-issues view and CSV exports.
+
 ## Install (load unpacked)
 
 1. Clone or download this folder.
@@ -277,7 +285,11 @@ seo-sidekick/
 ├── manifest.json                 MV3 manifest (storage, activeTab, scripting, host_permissions)
 ├── background.js                 service worker — scripting-injection orchestration
 ├── content/
-│   └── highlighter.js            Module 3 — link highlight styling + legend (injected)
+│   ├── highlighter.js            Module 3 — link highlight styling + legend (injected)
+│   ├── render-highlighter.js     Render tab — outlines JS-only content on the live page
+│   └── click-scan.js             Render tab — content behind clicks
+├── report/                       printable client report page
+├── bulk/                         site audit page (sitemap / URL list)
 ├── inject/
 │   ├── link-checker.js           Module 1 — self-contained injected function
 │   ├── hreflang-checker.js       Module 2 — self-contained injected function
@@ -291,7 +303,11 @@ seo-sidekick/
 │   ├── storage.js                chrome.storage.local promise wrapper + history
 │   ├── csv.js                    RFC-4180 CSV builder + download
 │   ├── iso-languages.js          full 184-entry ISO 639-1 list + validator
-│   └── pixel-measure.js          canvas measureText helpers
+│   ├── pixel-measure.js          canvas measureText helpers
+│   ├── reco-rules.js / recos.js  recommendation engine (rules + renderer)
+│   ├── history.js                before/after audit history per URL
+│   ├── handoff.js                client report, client email, dev tickets
+│   └── botview.js                crawler view (Googlebot & AI bots vs browser)
 ├── icons/                        16 / 32 / 48 / 128 PNGs
 ├── DECISIONS.md                  engineering decisions & defaults
 └── README.md
