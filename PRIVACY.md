@@ -44,8 +44,13 @@ Permissions are used solely to provide the features above:
 - **host permissions (all sites)** — required so the checks above can fetch link
   targets, `robots.txt`, sitemaps, and response headers of the site you are
   analyzing.
-- **storage** — to remember your local preferences.
+- **storage** — to remember your local preferences and the audit history of
+  pages you have checked (kept only on your device; you can clear it per page).
 - **sidePanel** — to show the extension's interface in Chrome's side panel.
+- **declarativeNetRequestWithHostAccess** — when you run the "Crawler view"
+  check, to send that single request with a crawler's User-Agent (e.g.
+  Googlebot, GPTBot). The rule applies only to the extension's own request and
+  is removed immediately; your normal browsing is never modified.
 
 ## Data sharing and sale
 

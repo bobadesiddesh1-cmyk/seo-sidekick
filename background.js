@@ -20,7 +20,9 @@
  *   'analyze-rendered'-> Render tab (inject/render-extract.js) — post-JS DOM metrics
  *   'page-context'    -> AI layer (inject/page-context.js) — compact extract for prompts
  *   'render-highlight'-> Render tab (content/render-highlighter.js) action: on|off|focus|state
+ *   'scan-clicks'     -> Render/Fixes (content/click-scan.js) action: scan|outline|focus|clear
  *   'fetch-resource'  -> network fetch (robots.txt/llms.txt/sitemap/headers), no tab
+ *   'fetch-as'        -> fetch a URL with a crawler's User-Agent (Googlebot, GPTBot…), no tab
  *   'highlight'       -> Module 3  (content/highlighter.js) action: on|off|toggle|counts|state
  */
 'use strict';
@@ -62,6 +64,10 @@ function callRenderHLOn(raw, opts) { return self.__SEO_renderHL.enable(raw, opts
 function callRenderHLOff() { return self.__SEO_renderHL.disable(); }
 function callRenderHLFocus(id) { return self.__SEO_renderHL.focus(id); }
 function callRenderHLState() { return self.__SEO_renderHL.state(); }
+function callClickScan(raw) { return self.__SEO_clickScan.scan(raw); }
+function callClickOutline(on) { return self.__SEO_clickScan.outline(on); }
+function callClickFocus(id) { return self.__SEO_clickScan.focus(id); }
+function callClickClear() { return self.__SEO_clickScan.clear(); }
 function callHighlightEnable() { return self.__SEO_highlighter.enable(); }
 function callHighlightDisable() { return self.__SEO_highlighter.disable(); }
 function callHighlightToggle() { return self.__SEO_highlighter.toggle(); }
@@ -91,14 +97,13 @@ async function getActiveTab() {
 // Fetch an arbitrary resource (robots.txt, llms.txt, sitemap, the page itself)
 // from the worker — host_permissions bypass CORS so we can read status, headers
 // and body. Used by the AI and Tech tabs. 15s timeout; never throws.
-async function fetchResource(url, method) {
+async function fetchResource(url, method, extra) {
   var controller = new AbortController();
   var t = setTimeout(function () { controller.abort(); }, 15000);
   try {
-    var resp = await fetch(url, {
-      method: method || 'GET', redirect: 'follow',
-      credentials: 'omit', signal: controller.signal
-    });
+    var opts = { method: method || 'GET', redirect: 'follow', credentials: 'omit', signal: controller.signal };
+    if (extra && extra.cache) opts.cache = extra.cache;
+    var resp = await fetch(url, opts);
     clearTimeout(t);
     var headers = {};
     try { resp.headers.forEach(function (v, k) { headers[k.toLowerCase()] = v; }); } catch (e) {}
@@ -115,6 +120,81 @@ async function fetchResource(url, method) {
     clearTimeout(t);
     return { ok: false, status: 0, headers: {}, finalUrl: url, redirected: false,
       body: '', error: (e && e.name === 'AbortError') ? 'timeout' : 'unreachable' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fetch as a crawler. A service-worker fetch() cannot set User-Agent itself, so
+// a temporary declarativeNetRequest SESSION rule rewrites it — scoped to this
+// extension's own requests (tabId -1 + initiator = this extension) for this one
+// host only, and removed right after. Calls are serialised so a rule can never
+// leak onto another of our fetches. Browsing in tabs is never affected.
+// ---------------------------------------------------------------------------
+function chromeVersion() {
+  try { var m = navigator.userAgent.match(/Chrome\/([\d.]+)/); return m ? m[1] : '131.0.0.0'; } catch (e) { return '131.0.0.0'; }
+}
+var CRAWLER_UA = {
+  'googlebot': function () {
+    return 'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/' +
+      chromeVersion() + ' Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+  },
+  'bingbot': function () {
+    return 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Chrome/' +
+      chromeVersion() + ' Safari/537.36';
+  },
+  'gptbot': function () { return 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.2; +https://openai.com/gptbot'; },
+  'oai-searchbot': function () { return 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot'; },
+  'claudebot': function () { return 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)'; },
+  'perplexitybot': function () { return 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)'; }
+};
+var UA_RULE_ID = 4201;
+var fetchAsChain = Promise.resolve();
+var uaBusy = 0;   // >0 while a crawler User-Agent rule may be installed
+
+// agent: 'browser' (Chrome's normal UA) or a CRAWLER_UA key.
+function fetchAs(url, agent) {
+  var job = fetchAsChain.then(function () {
+    if (agent === 'browser') {
+      return fetchResource(url, 'GET', { cache: 'no-store' }).then(function (r) { r.agent = 'browser'; return r; });
+    }
+    uaBusy++;
+    return fetchAsNow(url, agent).finally(function () { uaBusy--; });
+  });
+  fetchAsChain = job.catch(function () {});
+  return job;
+}
+async function fetchAsNow(url, agent) {
+  var make = CRAWLER_UA[agent];
+  if (!make) return { error: 'unknown agent' };
+  if (!chrome.declarativeNetRequest || !chrome.declarativeNetRequest.updateSessionRules) {
+    return { error: 'This version of Chrome cannot change the User-Agent for a request.' };
+  }
+  var host;
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return { error: 'bad url' }; }
+  var ua = make();
+  try {
+    await chrome.declarativeNetRequest.updateSessionRules({
+      removeRuleIds: [UA_RULE_ID],
+      addRules: [{
+        id: UA_RULE_ID, priority: 1,
+        action: { type: 'modifyHeaders', requestHeaders: [{ header: 'user-agent', operation: 'set', value: ua }] },
+        condition: {
+          tabIds: [chrome.tabs.TAB_ID_NONE],
+          initiatorDomains: [chrome.runtime.id],
+          requestDomains: [host],
+          resourceTypes: ['xmlhttprequest']
+        }
+      }]
+    });
+  } catch (e) {
+    return { error: 'Could not set the crawler User-Agent: ' + ((e && e.message) || e) };
+  }
+  try {
+    var r = await fetchResource(url, 'GET', { cache: 'no-store' });
+    r.agent = agent; r.userAgent = ua;
+    return r;
+  } finally {
+    try { await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [UA_RULE_ID] }); } catch (e) {}
   }
 }
 
@@ -257,8 +337,16 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     try {
       // Network-only messages: no tab injection needed.
       if (msg.type === 'fetch-resource') {
+        // Never let a temporary crawler User-Agent rule apply to a plain fetch.
+        if (uaBusy) await fetchAsChain;
         var r = await fetchResource(msg.url, msg.method);
         sendResponse({ ok: true, data: r });
+        return;
+      }
+      if (msg.type === 'fetch-as') {
+        var fa = await fetchAs(msg.url, msg.agent);
+        if (fa && fa.error && fa.status == null) sendResponse({ ok: false, error: fa.error });
+        else sendResponse({ ok: true, data: fa });
         return;
       }
 
@@ -341,6 +429,16 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
           else if (msg.action === 'focus') hlOut = await callInPageArgs(tab.id, callRenderHLFocus, [String(msg.id)]);
           else hlOut = await callInPage(tab.id, callRenderHLState);
           sendResponse({ ok: true, data: hlOut });
+          return;
+        }
+        case 'scan-clicks': {
+          await injectFile(tab.id, 'content/click-scan.js');
+          var cs;
+          if (msg.action === 'outline') cs = await callInPageArgs(tab.id, callClickOutline, [!!msg.on]);
+          else if (msg.action === 'focus') cs = await callInPageArgs(tab.id, callClickFocus, [String(msg.id)]);
+          else if (msg.action === 'clear') cs = await callInPage(tab.id, callClickClear);
+          else cs = await callInPageArgs(tab.id, callClickScan, [String(msg.rawHtml || '')]);
+          sendResponse({ ok: true, data: cs });
           return;
         }
         case 'highlight': {

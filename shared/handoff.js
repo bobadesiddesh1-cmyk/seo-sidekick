@@ -18,9 +18,9 @@
   'use strict';
 
   var THEMES = [
-    { key: 'render', label: 'Client-side rendering', test: function (r) { return r.source === 'Render' || /JavaScript|client-side/i.test(r.title); },
+    { key: 'render', label: 'Client-side rendering', test: function (r) { return r.source === 'Render' || (r.source !== 'Clicks' && r.source !== 'Crawlers') && /JavaScript|client-side/i.test(r.title); },
       plain: 'Parts of the page only appear after JavaScript runs, so Google sees them late and AI assistants such as ChatGPT may not see them at all.' },
-    { key: 'index', label: 'Indexability & crawling', test: function (r) { return /noindex|robots\.txt|HTTP status|sitemap|canonical|crawler view|blocked for/i.test(r.title); },
+    { key: 'index', label: 'Indexability & crawling', test: function (r) { return (r.source === 'Crawlers' || /noindex|robots\.txt|HTTP status|sitemap|canonical|crawler view|blocked for/i.test(r.title)) && !/AI crawlers/i.test(r.title); },
       plain: 'Some settings affect whether search engines can find, crawl and index this page.' },
     { key: 'meta', label: 'Titles, meta & snippets', test: function (r) { return /title|meta description|Open Graph|H1/i.test(r.title); },
       plain: 'The title and description people see in Google results can be improved to earn more clicks.' },
@@ -116,11 +116,11 @@
 
   // ---- dev tickets ----------------------------------------------------------
   var AC_RULES = [
+    [/blocked for|crawler view|crawlers are served/i, function () { return ['The URL returns HTTP 200 with the same page for the listed crawler user-agent(s) as for a browser, verified against the CDN/WAF rules']; }],
     [/canonical/i, function (r) { return ['View Source shows <link rel="canonical" href="' + (r.recommended && /^https?:/.test(r.recommended) ? r.recommended : '<this page URL>') + '">']; }],
     [/noindex/i, function () { return ['Neither the meta robots tag nor the X-Robots-Tag header contains "noindex"']; }],
     [/robots\.txt/i, function () { return ['robots.txt no longer disallows this URL for Googlebot']; }],
     [/AI crawler/i, function () { return ['robots.txt allows GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot and Google-Extended on this path']; }],
-    [/blocked for|crawler view/i, function () { return ['The URL returns HTTP 200 with the full page for the listed crawler user-agent(s), verified against the CDN/WAF rules']; }],
     [/sitemap/i, function () { return ['The URL is listed in the XML sitemap', 'The sitemap is referenced from robots.txt']; }],
     [/HTTP status/i, function () { return ['The URL returns HTTP 200']; }],
     [/meta description/i, function () { return ['A meta description of 70–160 characters is present', 'It is in the server HTML (View Source), not added by JavaScript']; }],
@@ -131,6 +131,8 @@
     [/load more|behind a click|tab panel|accordion/i, function () { return ['The content is reachable without clicking: present in the server HTML, or linked with crawlable <a href> pagination']; }],
     [/JavaScript|client-side|server-render/i, function () { return ['The content is present in View Source (server HTML) without JavaScript', 'SEO Sidekick’s Render tab shows this content as server-rendered']; }],
     [/hreflang/i, function () { return ['Every hreflang alternate returns a reciprocal tag', 'All codes are valid ISO 639-1 (+ optional ISO 3166-1)']; }],
+    [/can.t follow/i, function () { return ['Each listed item is an <a href="…"> pointing to a real URL', 'The target pages are reachable without JavaScript']; }],
+    [/collapsed section/i, function () { return ['The collapsed content is present in View Source (server HTML)']; }],
     [/broken link/i, function () { return ['Every listed link returns HTTP 200, or has been removed']; }],
     [/redirect/i, function () { return ['Internal links point straight to the final URL (no redirect hop)']; }],
     [/viewport/i, function () { return ['<meta name="viewport" content="width=device-width, initial-scale=1"> is present']; }],

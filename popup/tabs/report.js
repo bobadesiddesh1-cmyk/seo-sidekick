@@ -13,6 +13,7 @@
   window.SEO_TABS = window.SEO_TABS || {};
 
   var state = { ctx: null, running: false, data: null, links: null, scanning: false,
+               bots: null, botsBusy: false, botsProgress: '',
                pageType: null, clusters: null, aiBusy: false,
                // before/after history (shared/history.js)
                hist: null, histCount: 0, histSaved: false, trend: [], newKeys: {},
@@ -67,6 +68,8 @@
     var sitemapUrl = origin + '/sitemap.xml';
     if (robots && robots.body) { var m = robots.body.match(/^\s*sitemap:\s*(\S+)/im); if (m) sitemapUrl = m[1].trim(); }
     var sitemap = ok(await ctx.send({ type: 'fetch-resource', url: sitemapUrl }));
+    var pageHttp = ok(res[3]);
+    var clicks = ok(await ctx.send({ type: 'scan-clicks', rawHtml: pageHttp && pageHttp.body ? pageHttp.body : '' }));
 
     state.running = false;
     setStatus(ctx, '', false);
@@ -74,10 +77,24 @@
       url: url, path: path,
       onpage: ok(res[0]), schema: ok(res[1]), content: ok(res[2]),
       headers: ok(res[3]), robots: robots, llms: ok(res[5]), hreflang: ok(res[6]), sitemap: sitemap,
-      rendered: ok(res[7]), rawMetrics: rawMetricsFrom(ok(res[3]), url)
+      rendered: ok(res[7]), rawMetrics: rawMetricsFrom(ok(res[3]), url), clicks: clicks
     };
     state.histSaved = false;
     await updateHistory(false);
+    render(ctx);
+  }
+
+  async function checkCrawlers(ctx) {
+    if (state.botsBusy || !state.data || !window.SEO_BOTVIEW) return;
+    state.botsBusy = true; state.botsProgress = 'Starting…'; render(ctx);
+    try {
+      state.bots = await window.SEO_BOTVIEW.run(ctx, state.data.url, function (i, n, a) {
+        state.botsProgress = a.label + ' (' + (i + 1) + '/' + n + ')';
+        setStatus(ctx, 'Fetching as ' + state.botsProgress, false);
+      });
+      await updateHistory(true);
+    } catch (e) { state.bots = null; }
+    state.botsBusy = false; setStatus(ctx, '', false);
     render(ctx);
   }
 
@@ -107,6 +124,8 @@
     add(R.hreflang(d.hreflang), 'Hreflang');
     add(R.schema(d.schema), 'Schema');
     add(R.render({ raw: d.rawMetrics, rendered: d.rendered, url: d.url }), 'Render');
+    if (R.clicks && d.clicks) add(R.clicks(d.clicks), 'Clicks');
+    if (R.botview && state.bots) add(R.botview(state.bots), 'Crawlers');
     if (state.links) add(R.links(state.links), 'Links');
     add(pageTypeRecos(d), 'Page type');
     // Dedupe: the same fix can be reported by two tools (e.g. a canonical
@@ -258,7 +277,9 @@
     if (!H || !state.data) return;
     try {
       var sources = BASE_SOURCES.slice();
+      if (state.data.clicks) sources.push('Clicks');
       if (state.links) sources.push('Links');
+      if (state.bots) sources.push('Crawlers');
       if (state.pageType) sources.push('Page type');
       var snap = H.snapshot(aggregate(state.data), { sources: sources });
       var arr = await H.list(state.data.url);
@@ -479,12 +500,13 @@
       window.SEO_CSV.downloadText('seo-sidekick-action-plan-' + hostOf(d) + '.txt', actionPlanText(d, recos), 'text/plain');
     }));
     if (!state.links) actions.appendChild(tbtn(ctx, state.scanning ? 'Scanning…' : 'Include broken-link scan', function () { scanLinks(ctx); }));
+    if (!state.bots && window.SEO_BOTVIEW) actions.appendChild(tbtn(ctx, state.botsBusy ? 'Checking crawlers…' : 'Include crawler check (Googlebot & AI bots)', function () { checkCrawlers(ctx); }));
     wrap.appendChild(actions);
 
     renderHandoff(ctx, wrap, d, recos);
 
-    if (!state.links) wrap.appendChild(el('div', { class: 'reco-hint-note',
-      text: 'Tip: broken-link checking is off by default because it’s slower. Click “Include broken-link scan” to fold link fixes into this list.' }));
+    if (!state.links || !state.bots) wrap.appendChild(el('div', { class: 'reco-hint-note',
+      text: 'Tip: the broken-link scan and the crawler check are off by default because they make extra requests. Use the buttons above to fold their fixes into this list.' }));
 
     // AI insight (page type + root causes) — only where on-device AI can run.
     if (window.SEO_AI && window.SEO_RECO) {

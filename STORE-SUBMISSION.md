@@ -118,8 +118,17 @@ AI-crawler readiness, indexability, hreflang, and a snippet preview.
   ```
 - **storage**
   ```
-  Used only to remember the user's local UI preferences on their own device. No
-  data is transmitted.
+  Used only to remember the user's local UI preferences and the audit history of
+  pages they checked, on their own device. No data is transmitted.
+  ```
+- **declarativeNetRequestWithHostAccess**
+  ```
+  Used only when the user clicks "Compare crawler views": the extension fetches
+  the current page once as Googlebot, Bingbot and AI crawlers (GPTBot, ClaudeBot,
+  PerplexityBot) to show whether the site serves them a different response. A
+  temporary session rule sets the User-Agent on the extension's own request only
+  (tabId -1, initiator = this extension) and is removed right after. The user's
+  browsing traffic is never modified.
   ```
 - **sidePanel**
   ```
