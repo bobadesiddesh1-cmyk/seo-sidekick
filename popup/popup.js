@@ -127,11 +127,15 @@
     function schedule() {
       if (reloadTimer) clearTimeout(reloadTimer);
       reloadTimer = setTimeout(function () {
-        var prevId = ctx.activeTab && ctx.activeTab.id;
-        var prevUrl = ctx.activeTab && ctx.activeTab.url;
+        var prevTab = ctx.activeTab;
+        var prevId = prevTab && prevTab.id;
+        var prevUrl = prevTab && prevTab.url;
         loadActiveTab().then(function () {
           var t = ctx.activeTab;
           if (!t) return;
+          // Our own pages (client report, bulk audit) open in a new tab — keep
+          // showing the page that was being analysed instead of reloading.
+          if (prevTab && isOwnPage(t.url)) { ctx.activeTab = prevTab; return; }
           if (t.id === prevId && t.url === prevUrl) return; // nothing changed
           try { sessionStorage.setItem('seo_tab', currentTabName()); } catch (e) {}
           location.reload();
@@ -144,6 +148,9 @@
         if (info.status === 'complete' && ctx.activeTab && tabId === ctx.activeTab.id) schedule();
       });
     } catch (e) {}
+  }
+  function isOwnPage(url) {
+    try { return !!url && url.indexOf(chrome.runtime.getURL('')) === 0; } catch (e) { return false; }
   }
   function currentTabName() {
     var el = document.querySelector('.tab[aria-selected="true"]');

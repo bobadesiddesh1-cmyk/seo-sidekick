@@ -737,3 +737,50 @@ body.fullpage .verdict, body.fullpage .hf-card, body.fullpage .sd-item {
 .rhl-tag { flex: 0 0 auto; font: 700 9.5px "SF Mono", Menlo, Consolas, monospace; text-transform: uppercase; color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, transparent); padding: 2px 6px; border-radius: 5px; }
 .rhl-txt { flex: 1; min-width: 0; font-size: 12px; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rhl-go { padding: 3px 9px; font-size: 11px; flex: 0 0 auto; }
+
+/* ==========================================================================
+   Fixes tab — before/after history + hand-off (v2.0)
+   ========================================================================== */
+.reco-new { flex: 0 0 auto; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: #fff; background: var(--unknown); padding: 2px 7px; border-radius: 20px; }
+
+.hist { border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; margin-bottom: 14px; background: var(--bg-elev); }
+.hist-first { font-size: 12px; color: var(--fg-soft); background: var(--bg-soft); border-style: dashed; }
+.hist-first b { color: var(--fg); }
+.hist-hd { display: flex; align-items: baseline; gap: 8px; }
+.hist-hd b { font-size: 13.5px; color: var(--fg); }
+.hist-hd small { font-size: 11.5px; color: var(--fg-soft); }
+.hist-clear { margin-left: auto; background: none; border: none; padding: 0; font-size: 11px; color: var(--fg-soft); cursor: pointer; text-decoration: underline; }
+.hist-clear:hover { color: var(--bad); }
+.hist-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.hist-chip { font-size: 11.5px; font-weight: 800; padding: 3px 10px; border-radius: 20px; }
+.hist-chip.fixed { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.hist-chip.new { color: var(--unknown); background: color-mix(in srgb, var(--unknown) 13%, transparent); }
+.hist-chip.same { color: var(--fg-soft); background: var(--chip-bg); }
+.hist-trend { font-size: 11.5px; color: var(--fg-soft); margin-top: 8px; }
+.hist-trend b { color: var(--fg); font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; }
+.hist-list { margin-top: 8px; }
+.hist-list > summary { cursor: pointer; font-size: 11.5px; font-weight: 700; color: var(--accent); user-select: none; }
+.hist-item { font-size: 11.5px; padding: 4px 0 4px 18px; position: relative; color: var(--fg-soft); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ok) 60%, transparent); }
+.hist-item::before { content: "✓"; position: absolute; left: 3px; color: var(--ok); text-decoration: none; }
+.hist-note { font-size: 11px; color: var(--fg-soft); margin-top: 7px; }
+
+.handoff { border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; margin-bottom: 14px; background: var(--bg-soft); }
+.handoff-hd b { font-size: 13px; color: var(--fg); }
+.handoff-hd small { display: block; font-size: 11px; color: var(--fg-soft); margin-top: 1px; }
+.handoff-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+.handoff-row a.sd-btn { text-decoration: none; }
+.handoff-out { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+.handoff-sub { display: flex; gap: 8px; align-items: baseline; font-size: 12px; margin-bottom: 7px; }
+.handoff-sub span { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-soft); }
+.handoff-pre { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 10px 11px; font: 11.5px/1.5 "SF Mono", Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto; margin: 0; color: var(--fg); }
+.handoff-tip { font-size: 11px; color: var(--fg-soft); margin-top: 8px; }
+.tk-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.tk { border: 1px solid var(--border); border-radius: 9px; background: var(--bg-elev); padding: 7px 10px; }
+.tk > summary { cursor: pointer; display: flex; align-items: center; gap: 8px; list-style: none; }
+.tk > summary::-webkit-details-marker { display: none; }
+.tk[open] > summary { margin-bottom: 8px; }
+.tk-pri { flex: 0 0 auto; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #fff; padding: 2px 7px; border-radius: 5px; background: var(--accent); }
+.tk-pri.high { background: var(--bad); }
+.tk-pri.medium { background: var(--warn); }
+.tk-t { font-size: 12px; font-weight: 650; color: var(--fg); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk .handoff-row { margin-top: 7px; }
