@@ -17,6 +17,9 @@
   var state = { ctx: null, running: false, data: null };
   // Live-page highlighting state (the marks themselves live in the page).
   var hl = { on: false, busy: false, data: null, showSsr: false, err: '', queried: false };
+  // Content behind clicks (content/click-scan.js) and crawler view (shared/botview.js).
+  var ck = { busy: false, data: null, outlined: false, err: '' };
+  var bv = { busy: false, data: null, progress: '', err: '' };
 
   function init(ctx) {
     state.ctx = ctx;
@@ -60,6 +63,7 @@
     state.data = { url: url, raw: raw, rendered: rendered, http: http, rawBytes: http.body.length };
     render(ctx);
     if (hl.on) hlOn(ctx);
+    ckScan(ctx);
   }
 
   // Parse the server HTML with DOMParser (scripts never execute) and run the
@@ -117,6 +121,12 @@
     wrap.appendChild(el('div', { id: 'render-hl', class: 'rhl' }));
     paintHl(ctx);
     if (!hl.queried) { hl.queried = true; hlQuery(ctx); }
+
+    // ---- Content behind clicks + crawler view ----
+    wrap.appendChild(el('div', { id: 'render-clicks', class: 'rhl ck' }));
+    paintClicks(ctx);
+    wrap.appendChild(el('div', { id: 'render-bots', class: 'rhl bv' }));
+    paintBots(ctx);
 
     // ---- Side-by-side comparison ----
     var sec = el('div', { class: 'sd-block' });
@@ -289,6 +299,154 @@
     if (state.data && state.data.rawBytes >= 600000) {
       box.appendChild(el('div', { class: 'sd-note',
         text: 'The server HTML was larger than 600 KB and was truncated, so blocks near the bottom of the page may be flagged incorrectly.' }));
+    }
+  }
+
+  // ---- Content behind clicks ------------------------------------------------
+  var CK_LABEL = {
+    loadmore: 'Load-more buttons', 'lazy-toggle': 'Empty until opened', 'lazy-tab': 'Empty tabs',
+    'js-link': 'Links without a URL', 'hidden-js': 'Collapsed, added by JS', 'hidden-ok': 'Collapsed, in server HTML'
+  };
+  var CK_ORDER = ['loadmore', 'lazy-toggle', 'lazy-tab', 'js-link', 'hidden-js', 'hidden-ok'];
+  async function ckScan(ctx) {
+    if (ck.busy || !state.data) return;
+    ck.busy = true; ck.err = ''; paintClicks(ctx);
+    var r = await ctx.send({ type: 'scan-clicks', rawHtml: state.data.http ? state.data.http.body : '' });
+    ck.busy = false;
+    if (r && r.ok && r.data) ck.data = r.data;
+    else ck.err = (r && r.error) ? r.error : 'Could not scan this page.';
+    if (ck.outlined) await ctx.send({ type: 'scan-clicks', action: 'outline', on: true });
+    paintClicks(ctx);
+  }
+  async function ckOutline(ctx, on) {
+    var r = await ctx.send({ type: 'scan-clicks', action: 'outline', on: on });
+    if (r && r.ok) ck.outlined = !!r.data;
+    paintClicks(ctx);
+  }
+  function paintClicks(ctx) {
+    var box = ctx.qs('#render-clicks');
+    if (!box) return;
+    var el = ctx.el;
+    box.innerHTML = '';
+    box.appendChild(el('div', { class: 'rhl-hd' }, [
+      el('b', { text: 'Content behind clicks' }),
+      el('small', { text: 'Crawlers don’t click, scroll or type. These are the places where content waits for a click.' })
+    ]));
+    if (ck.err) { box.appendChild(el('div', { class: 'reco-ai-err', text: ck.err })); return; }
+    if (ck.busy && !ck.data) { box.appendChild(el('div', { class: 'sd-note', text: 'Scanning the page…' })); return; }
+    var d = ck.data;
+    if (!d) return;
+
+    var issues = d.items.filter(function (i) { return i.kind !== 'hidden-ok'; }).length;
+    var chips = el('div', { class: 'ck-chips' });
+    CK_ORDER.forEach(function (k) {
+      if (!d.counts[k]) return;
+      chips.appendChild(el('span', { class: 'ck-chip ' + (k === 'hidden-ok' ? 'ok' : 'warn'), text: d.counts[k] + ' · ' + CK_LABEL[k] }));
+    });
+    if (!d.items.length) chips.appendChild(el('span', { class: 'ck-chip ok', text: 'No click-gated content found' }));
+    box.appendChild(chips);
+
+    var row = el('div', { class: 'rhl-row' });
+    if (d.items.length) {
+      var ob = el('button', { class: 'sd-btn' + (ck.outlined ? '' : ' ck-primary') });
+      ob.innerHTML = '<span>' + (ck.outlined ? 'Hide outlines' : 'Outline on the page') + '</span>';
+      ob.addEventListener('click', function () { ckOutline(ctx, !ck.outlined); });
+      row.appendChild(ob);
+    }
+    row.appendChild(tbtn(ctx, ck.busy ? 'Scanning…' : 'Re-scan', function () { ckScan(ctx); }));
+    box.appendChild(row);
+
+    if (d.items.length) {
+      var list = el('div', { class: 'rhl-list' });
+      var sorted = d.items.slice().sort(function (a, b) { return CK_ORDER.indexOf(a.kind) - CK_ORDER.indexOf(b.kind); });
+      sorted.forEach(function (it) {
+        var r = el('div', { class: 'rhl-item' }, [
+          el('span', { class: 'rhl-tag ck-tag ' + (it.kind === 'hidden-ok' ? 'ok' : ''), text: CK_LABEL[it.kind] }),
+          el('span', { class: 'rhl-txt', text: it.text, title: it.tag + ' · ' + it.text })
+        ]);
+        var go = el('button', { class: 'sd-btn rhl-go', title: 'Scroll the page to this element' });
+        go.innerHTML = '<span>Show</span>';
+        go.addEventListener('click', function () { ctx.send({ type: 'scan-clicks', action: 'focus', id: it.id }); });
+        r.appendChild(go);
+        list.appendChild(r);
+      });
+      box.appendChild(list);
+    }
+    if (!d.rawChecked && d.items.length) box.appendChild(el('div', { class: 'sd-note',
+      text: 'The server HTML could not be read, so collapsed content was not checked against it.' }));
+
+    if (window.SEO_RECO && window.SEO_RECO_RULES) {
+      box.appendChild(window.SEO_RECO.section(ctx, 'Fixes', issues ? 'Make this content reachable without a click.' : '',
+        window.SEO_RECO_RULES.clicks(d), { empty: '✓ Nothing important is hidden behind a click.' }));
+    }
+  }
+
+  // ---- Crawler view: Googlebot & AI bots vs browser --------------------------
+  async function bvRun(ctx) {
+    if (bv.busy || !state.data) return;
+    bv.busy = true; bv.err = ''; bv.progress = 'Starting…'; paintBots(ctx);
+    try {
+      bv.data = await window.SEO_BOTVIEW.run(ctx, state.data.url, function (i, n, a) {
+        bv.progress = 'Fetching as ' + a.label + ' (' + (i + 1) + '/' + n + ')…';
+        paintBots(ctx);
+      });
+    } catch (e) { bv.err = 'The crawler comparison failed.'; }
+    bv.busy = false; bv.progress = '';
+    paintBots(ctx);
+  }
+  function paintBots(ctx) {
+    var box = ctx.qs('#render-bots');
+    if (!box) return;
+    var el = ctx.el;
+    box.innerHTML = '';
+    box.appendChild(el('div', { class: 'rhl-hd' }, [
+      el('b', { text: 'Crawler view: Googlebot & AI bots' }),
+      el('small', { text: 'Fetches this URL as Googlebot, Bingbot, GPTBot, ClaudeBot and PerplexityBot and compares each with what your browser gets.' })
+    ]));
+    var row = el('div', { class: 'rhl-row' });
+    var b = el('button', { class: 'sd-btn' + (bv.data ? '' : ' ck-primary') });
+    b.innerHTML = '<span>' + (bv.busy ? bv.progress : (bv.data ? 'Re-run comparison' : 'Compare crawler views')) + '</span>';
+    b.disabled = bv.busy;
+    b.addEventListener('click', function () { bvRun(ctx); });
+    row.appendChild(b);
+    box.appendChild(row);
+    if (bv.err) box.appendChild(el('div', { class: 'reco-ai-err', text: bv.err }));
+    if (!bv.data) return;
+
+    var res = bv.data.results;
+    var base = res.filter(function (r) { return r.key === 'browser'; })[0] || {};
+    var bw = base.m && base.m.words ? base.m.words.body : 0;
+    var tbl = el('div', { class: 'bv-tbl' });
+    tbl.appendChild(el('div', { class: 'bv-row head' }, [
+      el('div', { text: 'Crawler' }), el('div', { text: 'Status' }), el('div', { text: 'Words' }), el('div', { text: 'vs browser' })
+    ]));
+    res.forEach(function (r) {
+      var words = r.m && r.m.words ? r.m.words.body : 0;
+      var blocked = r.challenge || !r.status || r.status >= 400;
+      var noidx = /noindex/i.test(r.xRobots || '') || /noindex/i.test((r.m && r.m.robots) || '');
+      var verdict, tone;
+      if (r.key === 'browser') { verdict = 'baseline'; tone = 'int'; }
+      else if (blocked) { verdict = r.challenge ? 'challenge page' : 'blocked'; tone = 'bad'; }
+      else if (noidx && !(/noindex/i.test(base.xRobots || '') || /noindex/i.test((base.m && base.m.robots) || ''))) { verdict = 'noindex'; tone = 'bad'; }
+      else if (bw >= 50 && words < bw * 0.7) { verdict = 'less content'; tone = 'warn'; }
+      else if (r.m && base.m && ((r.m.title || '') !== (base.m.title || '') || (r.m.canonical || '') !== (base.m.canonical || ''))) { verdict = 'differs'; tone = 'warn'; }
+      else if (bw >= 50 && words > Math.max(bw * 1.3, bw + 80)) { verdict = 'pre-rendered'; tone = 'warn'; }
+      else { verdict = 'same'; tone = 'ok'; }
+      var name = el('div', { class: 'bv-name' }, [el('b', { text: r.label })]);
+      if (r.note) name.appendChild(el('small', { text: r.note }));
+      tbl.appendChild(el('div', { class: 'bv-row' }, [
+        name,
+        el('div', { class: 'bv-c ' + (blocked ? 'c-bad' : ''), text: r.status ? String(r.status) : '—', title: r.finalUrl || '' }),
+        el('div', { class: 'bv-c', text: r.m ? String(words) : '—' }),
+        el('div', { class: 'bv-v ' + tone, text: verdict })
+      ]));
+    });
+    box.appendChild(tbl);
+    box.appendChild(el('div', { class: 'sd-note',
+      text: 'Sent with each crawler’s User-Agent from your connection. Some firewalls verify real bots by IP address, so a block here may not apply to the real crawler (and vice versa). Use Search Console’s URL Inspection to confirm for Googlebot.' }));
+    if (window.SEO_RECO && window.SEO_RECO_RULES) {
+      box.appendChild(window.SEO_RECO.section(ctx, 'Fixes', '',
+        window.SEO_RECO_RULES.botview(bv.data), { empty: '✓ Every crawler gets the same page your visitors do.' }));
     }
   }
 

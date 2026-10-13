@@ -784,3 +784,29 @@ body.fullpage .verdict, body.fullpage .hf-card, body.fullpage .sd-item {
 .tk-pri.medium { background: var(--warn); }
 .tk-t { font-size: 12px; font-weight: 650; color: var(--fg); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tk .handoff-row { margin-top: 7px; }
+
+/* Render tab — content behind clicks + crawler view (v2.0) */
+.rhl.ck, .rhl.bv { border-color: color-mix(in srgb, #ea580c 30%, var(--border)); }
+.ck-primary { background: #ea580c; border-color: #ea580c; color: #fff; }
+.ck-primary:hover { color: #fff; filter: brightness(1.05); }
+.ck-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ck-chip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+.ck-chip.warn { color: #c2410c; background: color-mix(in srgb, #ea580c 12%, transparent); }
+.ck-chip.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.rhl-tag.ck-tag { color: #c2410c; background: color-mix(in srgb, #ea580c 11%, transparent); font-family: inherit; text-transform: none; font-size: 10px; }
+.rhl-tag.ck-tag.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 11%, transparent); }
+.rhl .reco-section { margin: 14px 0 0; }
+.bv-tbl { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.bv-row { display: grid; grid-template-columns: 1.5fr .6fr .6fr 1fr; align-items: center; border-top: 1px solid var(--border); font-size: 12px; }
+.bv-row:first-child { border-top: none; }
+.bv-row > div { padding: 7px 10px; min-width: 0; }
+.bv-row.head { background: var(--bg-soft); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-soft); }
+.bv-name b { display: block; font-size: 12px; color: var(--fg); }
+.bv-name small { display: block; font-size: 10.5px; color: var(--fg-soft); }
+.bv-c { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; }
+.bv-c.c-bad { color: var(--bad); font-weight: 700; }
+.bv-v { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
+.bv-v.ok { color: var(--ok); }
+.bv-v.warn { color: var(--warn); }
+.bv-v.bad { color: var(--bad); }
+.bv-v.int { color: var(--fg-soft); }

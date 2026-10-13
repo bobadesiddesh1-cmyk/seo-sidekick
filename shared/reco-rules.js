@@ -356,9 +356,133 @@
     return recos;
   }
 
+  // ---- Content behind clicks -------------------------------------------------
+  // d = output of content/click-scan.js: { items, counts, pagination }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+  function examples(items, kind) {
+    return items.filter(function (i) { return i.kind === kind; }).slice(0, 3)
+      .map(function (i) { return '“' + i.text + '”'; }).join(', ');
+  }
+  function clicks(d) {
+    if (!d || !d.items) return [];
+    var c = d.counts || {}, recos = [];
+    if (c.loadmore) {
+      if (d.pagination) recos.push({ sev: 'low', title: 'A "Load more" button is used, but crawlable pagination also exists',
+        detail: 'Crawlers can still reach the next pages through the normal pagination links, so this is fine. Make sure every page of results has its own URL.' });
+      else recos.push({ sev: 'high', title: 'Content is behind a "Load more" button',
+        detail: 'Search engines and AI crawlers don’t click buttons, so anything that loads after “' + (examples(d.items, 'loadmore') || 'Load more') +
+          '” is invisible to them, and there are no pagination links to follow instead. Keep the button for people, but make it a real link to the next page.',
+        current: '<button> with no URL', recommended: '<a href="?page=2"> crawlable pagination',
+        code: '<!-- A real link crawlers can follow; JavaScript upgrades it for people -->\n' +
+          '<a href="/category?page=2" class="load-more" data-load-more>Load more</a>\n\n' +
+          '<script>\n' +
+          '  document.querySelector(\'[data-load-more]\').addEventListener(\'click\', async (e) => {\n' +
+          '    e.preventDefault();\n' +
+          '    const next = e.currentTarget.href;\n' +
+          '    // fetch(next), append the items, then point href at the following page\n' +
+          '    // and history.pushState({}, \'\', next) so each batch has its own URL.\n' +
+          '  });\n' +
+          '</script>',
+        codeLabel: 'Show crawlable "Load more" pattern', codeName: 'load-more-pagination.html', codeMime: 'text/html' });
+    }
+    if (c['lazy-toggle']) recos.push({ sev: 'med', title: plural(c['lazy-toggle'], 'accordion section') + (c['lazy-toggle'] === 1 ? ' loads its' : ' load their') + ' content only on click',
+      detail: 'These expanders are empty until someone opens them, so the content is fetched on click (' + examples(d.items, 'lazy-toggle') +
+        '). Crawlers never open them. Put the content in the HTML and just hide it; collapsed content in the HTML is indexed.',
+      code: '<details>\n  <summary>Question or section title</summary>\n  <p>The full answer is in the HTML — only its visibility toggles.</p>\n</details>',
+      codeLabel: 'Show crawlable accordion', codeName: 'accordion.html', codeMime: 'text/html' });
+    if (c['lazy-tab']) recos.push({ sev: 'med', title: plural(c['lazy-tab'], 'tab panel') + (c['lazy-tab'] === 1 ? ' is' : ' are') + ' empty until clicked',
+      detail: 'Only the first tab’s content exists in the page; the others (' + examples(d.items, 'lazy-tab') +
+        ') load when clicked, so crawlers only ever see one tab. Render every panel in the HTML and hide the inactive ones.',
+      code: '<div role="tablist">\n  <button role="tab" aria-selected="true" aria-controls="p1">Details</button>\n  <button role="tab" aria-selected="false" aria-controls="p2">Reviews</button>\n</div>\n' +
+        '<div id="p1" role="tabpanel">…details…</div>\n<div id="p2" role="tabpanel" hidden>…reviews, already in the HTML…</div>',
+      codeLabel: 'Show crawlable tabs', codeName: 'tabs.html', codeMime: 'text/html' });
+    if (c['js-link']) recos.push({ sev: 'med', title: plural(c['js-link'], 'link') + ' crawlers can’t follow',
+      detail: 'These navigate with JavaScript instead of a real href (' + examples(d.items, 'js-link') +
+        '). Google only follows <a href="…"> links, so the pages behind them are not discovered this way.',
+      current: '<a onclick="…"> / href="#"', recommended: '<a href="/real-url">',
+      code: '<!-- Before -->\n<span onclick="location.href=\'/pricing\'">Pricing</span>\n\n<!-- After -->\n<a href="/pricing">Pricing</a>',
+      codeLabel: 'Show crawlable link', codeName: 'crawlable-link.html', codeMime: 'text/html' });
+    var hj = d.items.filter(function (i) { return i.kind === 'hidden-js'; });
+    var hjWords = hj.reduce(function (n, i) { return n + (i.words || 0); }, 0);
+    if (hj.length && hjWords >= 20) recos.push({ sev: hjWords >= 150 ? 'med' : 'low',
+      title: plural(hj.length, 'collapsed section') + ' behind a click ' + (hj.length === 1 ? 'is' : 'are') + ' missing from the server HTML',
+      detail: 'The content is in the page, but it was added by JavaScript (about ' + hjWords + ' words, e.g. ' + examples(d.items, 'hidden-js') +
+        '). Google can index it after rendering; AI crawlers that read only the server HTML will not see it.',
+      current: 'added by JavaScript', recommended: 'in the server HTML, collapsed' });
+    return recos;
+  }
+
+  // ---- Crawler view: Googlebot & AI bots vs browser -----------------------------
+  // d = output of shared/botview.js: { url, results:[{key,label,kind,status,…,m}] }
+  var IP_NOTE = 'SEO Sidekick sends the crawler’s User-Agent but not its IP address, and some firewalls verify bots by IP — confirm with Google Search Console’s URL Inspection (or your CDN’s bot settings) before changing anything.';
+  function botview(d) {
+    if (!d || !d.results) return [];
+    var base = d.results.filter(function (r) { return r.key === 'browser'; })[0];
+    if (!base || !(base.status >= 200 && base.status < 400) || base.challenge) return [];
+    var bots = d.results.filter(function (r) { return r.key !== 'browser'; });
+    var recos = [];
+    function names(list) { return list.map(function (r) { return r.label; }).join(', '); }
+    function codes(list) {
+      var u = {};
+      list.forEach(function (r) { u[r.challenge ? 'challenge page' : (r.status ? 'HTTP ' + r.status : 'no response')] = 1; });
+      return Object.keys(u).join(' / ');
+    }
+    function blocked(r) { return r.challenge || !r.status || r.status >= 400; }
+
+    var bSearch = bots.filter(function (r) { return r.kind === 'search' && blocked(r); });
+    var bAi = bots.filter(function (r) { return r.kind === 'ai' && blocked(r); });
+    if (bSearch.length) recos.push({ sev: 'high', title: 'Page is blocked for ' + names(bSearch) + ' (' + codes(bSearch) + ')',
+      detail: 'Your browser gets HTTP ' + base.status + ', but a request as ' + names(bSearch) + ' is refused. If the real crawler is blocked too, this page can drop out of search. ' + IP_NOTE,
+      current: codes(bSearch), recommended: 'HTTP 200 with the full page' });
+    if (bAi.length) recos.push({ sev: bAi.length >= 3 ? 'high' : 'med', title: 'Page is blocked for AI crawlers: ' + names(bAi),
+      detail: 'Requests as ' + names(bAi) + ' get ' + codes(bAi) + ' while browsers get HTTP ' + base.status +
+        '. This usually comes from a CDN or firewall setting such as “Block AI bots”. If you want to be cited in ChatGPT, Claude or Perplexity answers, allow these crawlers. ' + IP_NOTE,
+      current: codes(bAi), recommended: 'allow the AI crawlers you want to be cited by' });
+
+    var ok = bots.filter(function (r) { return !blocked(r); });
+    function hasNoindex(r) { return /noindex/i.test(r.xRobots || '') || /noindex/i.test((r.m && r.m.robots) || ''); }
+    if (!hasNoindex(base)) {
+      var ni = ok.filter(hasNoindex);
+      if (ni.length) recos.push({ sev: 'high', title: 'Crawlers are served "noindex": ' + names(ni),
+        detail: 'Browsers get an indexable page, but ' + names(ni) + (ni.length === 1 ? ' receives' : ' receive') + ' a noindex directive (X-Robots-Tag header or meta robots), so the page will not be indexed there.',
+        current: ni[0].xRobots || (ni[0].m && ni[0].m.robots) || 'noindex', recommended: 'no noindex for crawlers' });
+    }
+    function sameUrl(a, b) { try { var x = new URL(a), y = new URL(b); return x.host === y.host && x.pathname.replace(/\/$/, '') === y.pathname.replace(/\/$/, ''); } catch (e) { return a === b; } }
+    var rd = ok.filter(function (r) { return r.finalUrl && base.finalUrl && !sameUrl(r.finalUrl, base.finalUrl); });
+    if (rd.length) recos.push({ sev: 'med', title: 'Crawler view: redirected to a different URL (' + names(rd) + ')',
+      detail: 'These crawlers end up on a different page than people do. Unless it is a deliberate language/region redirect, serve crawlers the same URL.',
+      current: rd[0].finalUrl, recommended: base.finalUrl });
+
+    var bw = base.m && base.m.words ? base.m.words.body : 0;
+    if (bw >= 50) {
+      var less = ok.filter(function (r) { return r.m && r.m.words && sameUrl(r.finalUrl || '', base.finalUrl || '') && r.m.words.body < bw * 0.7; });
+      if (less.length) {
+        var worst = less.reduce(function (a, r) { return r.m.words.body < a.m.words.body ? r : a; });
+        var pct = Math.round((1 - worst.m.words.body / bw) * 100);
+        recos.push({ sev: 'med', title: 'Crawler view: ' + names(less) + ' get less content than visitors',
+          detail: worst.label + ' receives about ' + pct + '% fewer words (' + worst.m.words.body + ' vs ' + bw + '). Serving crawlers a cut-down page can look like cloaking and hides content from them.',
+          current: worst.m.words.body + ' words for ' + worst.label, recommended: bw + ' words, same as visitors' });
+      }
+      var more = ok.filter(function (r) { return r.m && r.m.words && r.m.words.body > Math.max(bw * 1.3, bw + 80); });
+      if (more.length) recos.push({ sev: 'low', title: 'Crawler view: pre-rendered HTML is served to crawlers (dynamic rendering)',
+        detail: names(more) + ' get a fuller HTML page than browsers. Google treats dynamic rendering as a workaround rather than a long-term solution; server-side rendering for everyone is simpler and avoids the two versions drifting apart.' });
+    }
+    if (base.m) {
+      var tdiff = ok.filter(function (r) { return r.m && r.m.title && base.m.title && r.m.title !== base.m.title; });
+      if (tdiff.length) recos.push({ sev: 'med', title: 'Crawler view: different title served to ' + names(tdiff),
+        detail: 'Crawlers and visitors get different <title> tags. Keep them identical so search results match the page.',
+        current: tdiff[0].m.title, recommended: base.m.title });
+      var cdiff = ok.filter(function (r) { return r.m && r.m.canonical && base.m.canonical && r.m.canonical !== base.m.canonical; });
+      if (cdiff.length) recos.push({ sev: 'high', title: 'Crawler view: different canonical served to ' + names(cdiff),
+        detail: 'The canonical URL changes depending on who asks. Crawlers will consolidate signals to the URL they are given.',
+        current: cdiff[0].m.canonical, recommended: base.m.canonical });
+    }
+    return recos;
+  }
+
   window.SEO_RECO_RULES = {
     onpage: onpage, tech: tech, ai: ai, hreflang: hreflang, links: links, schema: schema,
-    render: render,
+    render: render, clicks: clicks, botview: botview,
     _util: { selfUrl: selfUrl, originOf: originOf, pathOf: pathOf, renderAnalyze: renderAnalyze }
   };
 })();
