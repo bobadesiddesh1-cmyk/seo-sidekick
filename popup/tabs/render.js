@@ -15,6 +15,8 @@
   window.SEO_TABS = window.SEO_TABS || {};
 
   var state = { ctx: null, running: false, data: null };
+  // Live-page highlighting state (the marks themselves live in the page).
+  var hl = { on: false, busy: false, data: null, showSsr: false, err: '', queried: false };
 
   function init(ctx) {
     state.ctx = ctx;
@@ -57,6 +59,7 @@
     setStatus(ctx, '', false);
     state.data = { url: url, raw: raw, rendered: rendered, http: http, rawBytes: http.body.length };
     render(ctx);
+    if (hl.on) hlOn(ctx);
   }
 
   // Parse the server HTML with DOMParser (scripts never execute) and run the
@@ -109,6 +112,11 @@
       })
     ]);
     wrap.appendChild(actions);
+
+    // ---- Live-page highlighting ----
+    wrap.appendChild(el('div', { id: 'render-hl', class: 'rhl' }));
+    paintHl(ctx);
+    if (!hl.queried) { hl.queried = true; hlQuery(ctx); }
 
     // ---- Side-by-side comparison ----
     var sec = el('div', { class: 'sd-block' });
@@ -195,6 +203,95 @@
     b.addEventListener('click', onClick);
     return b;
   }
+
+  // ---- Live-page highlighting ---------------------------------------------
+  async function hlQuery(ctx) {
+    var r = await ctx.send({ type: 'render-highlight', action: 'state' });
+    if (r && r.ok && r.data && r.data.on) {
+      hl.on = true; hl.data = r.data; hl.showSsr = !!r.data.showSsr;
+      paintHl(ctx);
+    }
+  }
+  async function hlOn(ctx) {
+    if (!state.data || !state.data.http) return;
+    hl.busy = true; hl.err = ''; paintHl(ctx);
+    var r = await ctx.send({ type: 'render-highlight', action: 'on',
+      rawHtml: state.data.http.body, opts: { showSsr: hl.showSsr } });
+    hl.busy = false;
+    if (r && r.ok && r.data) { hl.on = true; hl.data = r.data; }
+    else hl.err = (r && r.error) ? r.error : 'Could not highlight this page.';
+    paintHl(ctx);
+  }
+  async function hlOff(ctx) {
+    hl.busy = true; paintHl(ctx);
+    await ctx.send({ type: 'render-highlight', action: 'off' });
+    hl.busy = false; hl.on = false; hl.data = null;
+    paintHl(ctx);
+  }
+  function hlFocus(ctx, id) { ctx.send({ type: 'render-highlight', action: 'focus', id: id }); }
+
+  function paintHl(ctx) {
+    var box = ctx.qs('#render-hl');
+    if (!box) return;
+    var el = ctx.el;
+    box.innerHTML = '';
+    box.appendChild(el('div', { class: 'rhl-hd' }, [
+      el('b', { text: 'See it on the live page' }),
+      el('small', { text: 'Outlines every block that only appears after JavaScript runs — the parts non-rendering crawlers never see.' })
+    ]));
+
+    var row = el('div', { class: 'rhl-row' });
+    var b = el('button', { class: 'sd-btn' + (hl.on ? '' : ' rhl-primary') });
+    b.innerHTML = '<span>' + (hl.busy ? 'Working…' : (hl.on ? 'Hide highlights' : 'Highlight JS-only content')) + '</span>';
+    b.disabled = hl.busy;
+    b.addEventListener('click', function () { if (hl.on) hlOff(ctx); else hlOn(ctx); });
+    row.appendChild(b);
+
+    var lab = el('label', { class: 'rhl-opt' });
+    var cb = el('input', { type: 'checkbox' });
+    cb.checked = hl.showSsr;
+    cb.addEventListener('change', function () { hl.showSsr = cb.checked; if (hl.on) hlOn(ctx); });
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(' Also outline server-rendered (green)'));
+    row.appendChild(lab);
+    box.appendChild(row);
+
+    if (hl.err) box.appendChild(el('div', { class: 'reco-ai-err', text: hl.err }));
+    if (!hl.on || !hl.data) return;
+
+    var d = hl.data;
+    box.appendChild(el('div', { class: 'rhl-sum' }, [
+      el('span', { class: 'rhl-dot csr' }),
+      el('span', { text: d.csr + ' block' + (d.csr === 1 ? '' : 's') + ' only appear after JavaScript' }),
+      el('span', { class: 'rhl-dot ssr' }),
+      el('span', { text: d.ssr + ' in the server HTML' })
+    ]));
+    if (!d.csr) {
+      box.appendChild(el('div', { class: 'sd-note ok', text: '✓ Every visible block on this page is in the server HTML.' }));
+      return;
+    }
+    var list = el('div', { class: 'rhl-list' });
+    (d.items || []).slice(0, 60).forEach(function (it) {
+      var r = el('div', { class: 'rhl-item' }, [
+        el('span', { class: 'rhl-tag', text: it.tag }),
+        el('span', { class: 'rhl-txt', text: it.text || '(no text)', title: it.text || '' })
+      ]);
+      var go = el('button', { class: 'sd-btn rhl-go', title: 'Scroll the page to this block' });
+      go.innerHTML = '<span>Show</span>';
+      go.addEventListener('click', function () { hlFocus(ctx, it.id); });
+      r.appendChild(go);
+      list.appendChild(r);
+    });
+    if ((d.items || []).length > 60) {
+      list.appendChild(el('div', { class: 'sd-note', text: '…and ' + (d.items.length - 60) + ' more, outlined on the page.' }));
+    }
+    box.appendChild(list);
+    if (state.data && state.data.rawBytes >= 600000) {
+      box.appendChild(el('div', { class: 'sd-note',
+        text: 'The server HTML was larger than 600 KB and was truncated, so blocks near the bottom of the page may be flagged incorrectly.' }));
+    }
+  }
+
   function hostOf(d) { try { return new URL(d.url).hostname; } catch (e) { return 'page'; } }
 
   function toCsv(d, a) {
@@ -206,6 +303,11 @@
     out.push(['Verdict', a.label]);
     out.push(['Server-rendered content', a.coverage + '%']);
     out.push(['URL', d.url]);
+    if (hl.on && hl.data && hl.data.items && hl.data.items.length) {
+      out.push([]);
+      out.push(['JS-only content (not in the server HTML)', 'Element', 'Text']);
+      hl.data.items.forEach(function (it, i) { out.push([i + 1, it.tag, it.text]); });
+    }
     return window.SEO_CSV.toCsv(out);
   }
 

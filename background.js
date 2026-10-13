@@ -19,6 +19,7 @@
  *   'analyze-schema'  -> Schema tab (inject/schema-analyzer.js) — rich-result eligibility
  *   'analyze-rendered'-> Render tab (inject/render-extract.js) — post-JS DOM metrics
  *   'page-context'    -> AI layer (inject/page-context.js) — compact extract for prompts
+ *   'render-highlight'-> Render tab (content/render-highlighter.js) action: on|off|focus|state
  *   'fetch-resource'  -> network fetch (robots.txt/llms.txt/sitemap/headers), no tab
  *   'highlight'       -> Module 3  (content/highlighter.js) action: on|off|toggle|counts|state
  */
@@ -57,6 +58,10 @@ function callContentAnalyzer() { return self.__SEO_runContentAnalyzer(); }
 function callSchemaAnalyzer() { return self.__SEO_runSchemaAnalyzer(); }
 function callRenderExtract() { return self.__SEO_extractRendered(); }
 function callPageContext() { return self.__SEO_pageContext(); }
+function callRenderHLOn(raw, opts) { return self.__SEO_renderHL.enable(raw, opts); }
+function callRenderHLOff() { return self.__SEO_renderHL.disable(); }
+function callRenderHLFocus(id) { return self.__SEO_renderHL.focus(id); }
+function callRenderHLState() { return self.__SEO_renderHL.state(); }
 function callHighlightEnable() { return self.__SEO_highlighter.enable(); }
 function callHighlightDisable() { return self.__SEO_highlighter.disable(); }
 function callHighlightToggle() { return self.__SEO_highlighter.toggle(); }
@@ -69,6 +74,12 @@ async function injectFile(tabId, file) {
 
 async function callInPage(tabId, fn) {
   var res = await chrome.scripting.executeScript({ target: { tabId: tabId }, func: fn });
+  return res && res[0] ? res[0].result : null;
+}
+
+// Same, but passes JSON-serialisable arguments into the page function.
+async function callInPageArgs(tabId, fn, args) {
+  var res = await chrome.scripting.executeScript({ target: { tabId: tabId }, func: fn, args: args || [] });
   return res && res[0] ? res[0].result : null;
 }
 
@@ -320,6 +331,16 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
           await injectFile(tab.id, 'inject/render-extract.js');
           var rendered = await callInPage(tab.id, callRenderExtract);
           sendResponse({ ok: true, data: rendered });
+          return;
+        }
+        case 'render-highlight': {
+          await injectFile(tab.id, 'content/render-highlighter.js');
+          var hlOut;
+          if (msg.action === 'on') hlOut = await callInPageArgs(tab.id, callRenderHLOn, [String(msg.rawHtml || ''), msg.opts || {}]);
+          else if (msg.action === 'off') hlOut = await callInPage(tab.id, callRenderHLOff);
+          else if (msg.action === 'focus') hlOut = await callInPageArgs(tab.id, callRenderHLFocus, [String(msg.id)]);
+          else hlOut = await callInPage(tab.id, callRenderHLState);
+          sendResponse({ ok: true, data: hlOut });
           return;
         }
         case 'highlight': {
