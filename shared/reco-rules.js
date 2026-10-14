@@ -370,8 +370,8 @@
       if (d.pagination) recos.push({ sev: 'low', title: 'A "Load more" button is used, but crawlable pagination also exists',
         detail: 'Crawlers can still reach the next pages through the normal pagination links, so this is fine. Make sure every page of results has its own URL.' });
       else recos.push({ sev: 'high', title: 'Content is behind a "Load more" button',
-        detail: 'Search engines and AI crawlers don’t click buttons, so anything that loads after “' + (examples(d.items, 'loadmore') || 'Load more') +
-          '” is invisible to them, and there are no pagination links to follow instead. Keep the button for people, but make it a real link to the next page.',
+        detail: 'Search engines and AI crawlers don’t click buttons, so anything that loads after ' + (examples(d.items, 'loadmore') || '“Load more”') +
+          ' is invisible to them, and there are no pagination links to follow instead. Keep the button for people, but make it a real link to the next page.',
         current: '<button> with no URL', recommended: '<a href="?page=2"> crawlable pagination',
         code: '<!-- A real link crawlers can follow; JavaScript upgrades it for people -->\n' +
           '<a href="/category?page=2" class="load-more" data-load-more>Load more</a>\n\n' +
