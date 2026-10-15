@@ -58,11 +58,25 @@
     if (!sitemapUrl) sitemapUrl = origin + '/sitemap.xml';
     var sitemapRes = await ctx.send({ type: 'fetch-resource', url: sitemapUrl });
     var sitemap = sitemapRes && sitemapRes.ok ? sitemapRes.data : null;
+    var canonicalTarget = await fetchCanonicalTarget(ctx, url, onpage && onpage.canonical);
 
     state.running = false;
     setStatus(ctx, '', false);
-    state.data = { url: url, path: path, onpage: onpage, headers: headers, robots: robots, sitemap: sitemap, sitemapUrl: sitemapUrl };
+    state.data = { url: url, path: path, onpage: onpage, headers: headers, robots: robots, sitemap: sitemap, sitemapUrl: sitemapUrl,
+      canonicalTarget: canonicalTarget };
     render(ctx, state.data);
+  }
+
+  // When the canonical names another URL, fetch it: a canonical that points at
+  // a redirect, an error or a noindexed page is ignored by search engines.
+  async function fetchCanonicalTarget(ctx, url, canonical) {
+    if (!canonical || !window.SEO_INTEL) return null;
+    var st = window.SEO_INTEL.canonicalAssess(url, canonical).status;
+    if (st === 'self' || st === 'missing') return null;
+    var abs = canonical;
+    try { abs = new URL(canonical, url).href; } catch (e) { return null; }
+    var r = await ctx.send({ type: 'fetch-resource', url: abs, method: 'GET' });
+    return r && r.ok ? r.data : null;
   }
 
   // ---- robots.txt: minimal Googlebot allow check + sitemaps -----------------
@@ -130,7 +144,9 @@
     var metaRobots = (d.onpage && d.onpage.robots) || '';
     var xRobots = hdr['x-robots-tag'] || '';
     var canonical = (d.onpage && d.onpage.canonical) || '';
-    var canonMatches = d.onpage && d.onpage.canonicalMatchesUrl;
+    var ca = window.SEO_INTEL ? window.SEO_INTEL.canonicalAssess(d.url, canonical)
+      : { status: canonical ? ((d.onpage && d.onpage.canonicalMatchesUrl) ? 'self' : 'different') : 'missing' };
+    var canonMatches = ca.status === 'self' || ca.status === 'consolidated';
 
     var robotsParsed = d.robots && d.robots.body ? parseRobots(d.robots.body) : null;
     var robotsBlocked = false;
@@ -146,7 +162,9 @@
     if (/noindex/i.test(xRobots)) { indexable = false; reasons.push('X-Robots-Tag header contains "noindex"'); }
     var softReasons = [];
     if (robotsBlocked) softReasons.push('robots.txt disallows crawling this path for Googlebot');
-    if (canonical && !canonMatches) softReasons.push('Canonical points to a different URL (this URL may not be the indexed one)');
+    if (canonical && !canonMatches) softReasons.push(ca.status === 'different'
+      ? 'Canonical points to a different URL, so that URL is the one Google will usually index'
+      : 'Canonical needs attention: ' + (ca.explain || 'see recommendations'));
 
     var verdictCard = el('div', { class: 'verdict ' + (indexable ? (softReasons.length ? 'warn' : 'ok') : 'bad') });
     verdictCard.innerHTML =
@@ -165,7 +183,7 @@
         'Prioritised technical & indexability fixes — each with copy-paste code.',
         window.SEO_RECO_RULES.tech({
           onpage: d.onpage, headers: d.headers, robots: d.robots,
-          sitemap: d.sitemap, url: d.url, path: d.path
+          sitemap: d.sitemap, url: d.url, path: d.path, canonicalTarget: d.canonicalTarget
         }),
         { empty: '✓ No indexability issues — this page can be crawled and indexed.' }));
     }
@@ -175,7 +193,7 @@
       kv(ctx, 'HTTP status', h.status ? String(h.status) : 'n/a', (h.status >= 200 && h.status < 300) ? 'ok' : (h.status ? 'bad' : 'int')),
       kv(ctx, 'Meta robots', metaRobots || '(default index,follow)', /noindex/i.test(metaRobots) ? 'bad' : 'ok'),
       kv(ctx, 'X-Robots-Tag', xRobots || '(none)', /noindex/i.test(xRobots) ? 'bad' : (xRobots ? 'warn' : 'ok')),
-      kv(ctx, 'Canonical', canonical ? (canonMatches ? 'self ✓' : 'differs ⚠') : '(none)', canonical ? (canonMatches ? 'ok' : 'warn') : 'warn'),
+      kv(ctx, 'Canonical', canonical ? (ca.status === 'self' ? 'self ✓' : ca.status === 'consolidated' ? 'clean URL ✓' : 'differs ⚠') : '(none)', canonical ? (canonMatches ? 'ok' : 'warn') : 'warn'),
       kv(ctx, 'robots.txt (Googlebot)', d.robots && d.robots.status === 404 ? 'no robots.txt' : (robotsBlocked ? 'DISALLOWED' : 'allowed'), robotsBlocked ? 'bad' : 'ok')
     ]);
     wrap.appendChild(sig);

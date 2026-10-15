@@ -14,6 +14,14 @@ telemetry, no remote config, no sign-in.
 
 ---
 
+## What's new in v2.1: recommendations that think like an SEO
+
+- **Canonical intelligence** (`shared/seo-intel.js`): URL parameters are classified (tracking, session, pagination, sorting/display, filters, search, variants, content-selecting). A canonical that drops tracking, sorting or page-1 parameters is recognised as correct. Real mistakes are flagged: page N canonicalised to page 1, inner page → homepage, staging/preview domains, http canonicals, tracking parameters inside the canonical, dropped content parameters. The canonical target is fetched and checked for redirects, errors, noindex and chains.
+- **Context-aware rules**: noindex on cart, search and filtered pages is treated as expected; snippet advice is skipped on paginated, search and utility pages; title/description length uses pixel widths and is low priority (not a ranking factor); multiple H1s are low priority.
+- **Page-type awareness**: AI/GEO content advice (author, dates, citations, summaries) only appears where it makes sense, e.g. articles, not category or cart pages.
+- **AI crawlers**: search/citation crawlers are separated from training-only crawlers; blocking training is treated as a legitimate choice.
+- **Up-to-date schema facts**: FAQ rich results are limited to government/health sites, How-to rich results and the sitelinks search box are retired.
+
 ## What's new in v2.0
 
 - **Before/after history**: every Fixes-tab audit is saved on your device. The next check of the same URL shows what was fixed, what's new and the issue trend.

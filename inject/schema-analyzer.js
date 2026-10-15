@@ -103,7 +103,8 @@
       BlogPosting:    { label: 'Blog Posting',        req: ['headline', 'image'], rec: ['author', 'datePublished', 'dateModified', 'publisher'], docs: 'article' },
       BreadcrumbList: { label: 'Breadcrumb',          req: ['itemListElement'], rec: [], docs: 'breadcrumb', special: 'breadcrumb' },
       Product:        { label: 'Product',             req: ['name', 'image'], rec: ['description', 'brand', 'sku', 'aggregateRating', 'review'], docs: 'product', special: 'product' },
-      FAQPage:        { label: 'FAQ',                 req: ['mainEntity'], rec: [], docs: 'faqpage', special: 'faq' },
+      FAQPage:        { label: 'FAQ',                 req: ['mainEntity'], rec: [], docs: 'faqpage', special: 'faq',
+                        note: 'Since 2023 Google shows FAQ rich results only for well-known government and health sites. The markup is still valid and helps machines read your Q&A.' },
       QAPage:         { label: 'Q&A',                 req: ['mainEntity'], rec: [], docs: 'qapage' },
       Recipe:         { label: 'Recipe',              req: ['name', 'image'], rec: ['author', 'datePublished', 'description', 'recipeIngredient', 'recipeInstructions', 'aggregateRating', 'nutrition'], docs: 'recipe' },
       Event:          { label: 'Event',               req: ['name', 'startDate', 'location'], rec: ['endDate', 'eventStatus', 'offers', 'performer', 'image'], docs: 'event' },
@@ -111,11 +112,13 @@
       Organization:   { label: 'Organization',        req: ['name', 'url'], rec: ['logo', 'sameAs', 'contactPoint'], docs: 'organization' },
       LocalBusiness:  { label: 'Local Business',      req: ['name', 'address'], rec: ['telephone', 'openingHours', 'geo', 'image', 'priceRange', 'url'], docs: 'local-business' },
       JobPosting:     { label: 'Job Posting',         req: ['title', 'description', 'datePosted', 'hiringOrganization'], rec: ['jobLocation', 'baseSalary', 'employmentType', 'validThrough'], docs: 'job-posting' },
-      HowTo:          { label: 'How-to',              req: ['name', 'step'], rec: ['image', 'totalTime', 'tool', 'supply'], docs: 'how-to' },
+      HowTo:          { label: 'How-to',              req: ['name', 'step'], rec: ['image', 'totalTime', 'tool', 'supply'], docs: 'how-to',
+                        note: 'Google stopped showing How-to rich results in 2023. The markup is valid but no longer produces a rich result.' },
       Review:         { label: 'Review snippet',      req: ['itemReviewed', 'reviewRating', 'author'], rec: ['datePublished', 'reviewBody', 'publisher'], docs: 'review-snippet' },
       AggregateRating:{ label: 'Aggregate rating',    req: ['ratingValue'], rec: ['reviewCount', 'ratingCount', 'bestRating'], docs: 'review-snippet' },
       SoftwareApplication: { label: 'Software App',   req: ['name'], rec: ['offers', 'aggregateRating', 'operatingSystem', 'applicationCategory'], docs: 'software-app' },
-      WebSite:        { label: 'Sitelinks Searchbox', req: ['url'], rec: ['potentialAction'], docs: 'sitelinks-searchbox' }
+      WebSite:        { label: 'Site name',           req: ['url', 'name'], rec: ['alternateName'], docs: 'site-names',
+                        note: 'Google uses WebSite markup on the homepage to choose the site name shown in results. The sitelinks search box it once enabled was retired in 2024.' }
     };
     // Types that carry meaning but aren't rich-result eligible on their own.
     var KNOWN_NONRICH = ['WebPage', 'WebSite', 'Person', 'ImageObject', 'Offer',
@@ -338,7 +341,7 @@
           type: tp, label: spec.label, docs: spec.docs,
           name: String(rn.node.name || rn.node.headline || rn.node.title || '').slice(0, 80),
           required: required, recommended: recommended,
-          eligible: missingReq.length === 0, missingRequired: missingReq,
+          eligible: missingReq.length === 0, missingRequired: missingReq, note: spec.note || '',
           missingRecommended: recommended.filter(function (r) { return !r.present; }).map(function (r) { return r.name; })
         });
       });
@@ -499,8 +502,8 @@
     var breadcrumbEl = q('[aria-label*="breadcrumb" i], [class*="breadcrumb" i], nav[class*="crumb" i], ol[class*="breadcrumb" i], .breadcrumbs, [itemtype*="BreadcrumbList"]');
     if (breadcrumbEl && !hasType('BreadcrumbList')) {
       gaps.push({ id: 'breadcrumb', title: 'Breadcrumb navigation without BreadcrumbList schema',
-        why: 'A breadcrumb trail is on the page but no BreadcrumbList structured data was found. Adding it can produce breadcrumb rich results in Google.',
-        templateKey: 'BreadcrumbList', severity: 'high' });
+        why: 'A breadcrumb trail is on the page but no BreadcrumbList structured data was found. Google uses it to show the page’s position in your site in desktop results instead of a raw URL.',
+        templateKey: 'BreadcrumbList', severity: 'med' });
     }
 
     // FAQ-like layout but no FAQPage.
@@ -512,8 +515,8 @@
       gaps.push({ id: 'faq', title: 'FAQ-style content without FAQPage schema',
         why: 'The page has a question/answer layout (' +
           (detailsPairs >= 3 ? detailsPairs + ' expandable items' : dtdd >= 3 ? dtdd + ' definition items' : qHeadings + ' question headings') +
-          ') but no FAQPage markup. FAQPage can show expandable Q&A directly in search.',
-        templateKey: 'FAQPage', severity: 'high' });
+          ') but no FAQPage markup. Note that Google now shows FAQ rich results only for well-known government and health sites, so for most sites this markup helps machines (including AI tools) read the Q&A rather than adding a rich result.',
+        templateKey: 'FAQPage', severity: 'low' });
     }
 
     // Article byline / date but no Article type.
@@ -551,13 +554,7 @@
         why: 'The site has a logo/branding but no Organization markup. Organization (with a logo and sameAs profiles) helps Google build a knowledge panel and use your logo.',
         templateKey: 'Organization', severity: 'low' });
     }
-    // Sitelinks search box (WebSite + SearchAction) for sites with an on-site search.
-    var searchEl = q('input[type="search"], form[role="search"], [class*="search-form" i] input');
-    if (searchEl && !hasType('WebSite')) {
-      gaps.push({ id: 'website', title: 'On-site search without WebSite / Sitelinks Searchbox schema',
-        why: 'The page has a search box but no WebSite markup with a potentialAction. Adding it can enable a search box directly in Google’s sitelinks.',
-        templateKey: 'WebSite', severity: 'low' });
-    }
+    // (The sitelinks search box was retired by Google in 2024; no gap for it.)
 
     // ---- Summary counts -----------------------------------------------------
     var formats = [];

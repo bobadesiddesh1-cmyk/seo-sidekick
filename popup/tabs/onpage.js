@@ -142,14 +142,19 @@
     var idxRows = [];
     // Canonical: show the URL actually in the tag AND the URL that should be
     // there (this page's own URL) whenever it's missing or points elsewhere.
-    var selfUrl = selfCanonical(d.url);
-    idxRows.push(keyVal(ctx, 'Canonical (current)', d.canonical || '(none)',
-      d.canonical ? (d.canonicalMatchesUrl ? 'ok' : 'warn') : 'warn'));
-    if (!d.canonical || !d.canonicalMatchesUrl) {
-      idxRows.push(keyVal(ctx, 'Canonical (recommended)', selfUrl, 'ok'));
-    } else {
-      idxRows.push(keyVal(ctx, 'Canonical', 'self-referencing ✓', 'ok'));
+    // Judged by shared/seo-intel.js: a canonical that drops tracking, sorting
+    // or page-1 parameters is correct, not a mismatch.
+    var ca = window.SEO_INTEL ? window.SEO_INTEL.canonicalAssess(d.url, d.canonical)
+      : { status: d.canonical ? (d.canonicalMatchesUrl ? 'self' : 'different') : 'missing', explain: '', findings: [] };
+    var canonOk = ca.status === 'self' || ca.status === 'consolidated';
+    idxRows.push(keyVal(ctx, 'Canonical (current)', d.canonical || '(none)', canonOk ? 'ok' : (ca.status === 'issue' ? 'bad' : 'warn')));
+    if (ca.status === 'self') idxRows.push(keyVal(ctx, 'Canonical', 'self-referencing ✓', 'ok'));
+    else if (ca.status === 'consolidated') idxRows.push(keyVal(ctx, 'Canonical', 'clean URL for this page ✓', 'ok'));
+    else {
+      var rec = (ca.findings[0] && ca.findings[0].recommended) || selfCanonical(d.url);
+      idxRows.push(keyVal(ctx, ca.status === 'different' ? 'Canonical (if this page is unique)' : 'Canonical (recommended)', rec, 'ok'));
     }
+    if (ca.explain && ca.status !== 'self' && ca.status !== 'missing') idxRows.push(el('div', { class: 'op-note' + (canonOk ? '' : ' warn'), text: ca.explain }));
     idxRows.push(keyVal(ctx, 'Meta robots', d.robots || '(default: index,follow)',
       /noindex/i.test(d.robots || '') ? 'bad' : 'ok'));
     idxRows.push(keyVal(ctx, 'Viewport', d.viewport || '(missing)', d.viewport ? 'ok' : 'warn'));

@@ -20,6 +20,15 @@
   function selfUrl(u) { try { var x = new URL(u); x.hash = ''; return x.href; } catch (e) { return u || ''; } }
   function originOf(u) { try { return new URL(u).origin; } catch (e) { return ''; } }
   function pathOf(u) { try { return new URL(u).pathname || '/'; } catch (e) { return '/'; } }
+  function intel() { return (typeof window !== 'undefined' && window.SEO_INTEL) || null; }
+  function canonFindings(url, canonical) {
+    var I = intel();
+    if (!I) return [];
+    return I.canonicalAssess(url, canonical).findings;
+  }
+  function px(kind, text) {
+    try { var P = window.SEO_PIXEL; return P ? (kind === 'title' ? P.titleWidth(text) : P.descWidth(text)) : 0; } catch (e) { return 0; }
+  }
   function norm(u) { try { var x = new URL(u); x.hash = ''; return x.href.replace(/\/$/, ''); } catch (e) { return (u || '').replace(/#.*$/, '').replace(/\/$/, ''); } }
 
   // ---- robots.txt / sitemap parsing (self-contained) ----------------------
@@ -68,48 +77,81 @@
     return { isIndex: isIndex, count: locs.length, locs: locs };
   }
 
+  // meta robots noindex, judged in context (shared by On-Page and Tech).
+  function noindexRecos(url, robots) {
+    var I = intel(), cx = (I && I.urlContext(url)) || {}, recos = [];
+    if (/noindex/i.test(robots || '')) {
+      var why = I ? I.noindexExpected(url) : '';
+      if (cx.isPaginated) recos.push({ sev: 'med', title: 'Paginated page is set to noindex',
+        detail: 'Google recommends letting paginated pages be indexed. A long-standing noindex can make Google crawl them less, so items only linked from deeper pages are found more slowly. Prefer index with a self-referencing canonical.',
+        current: robots, recommended: 'index,follow', code: '<meta name="robots" content="index,follow">', codeName: 'robots-meta.html' });
+      else if (!why) recos.push({ sev: 'high', title: 'Page is set to noindex',
+        detail: 'The meta robots tag contains noindex, so this page will not appear in search. That is right for thank-you, account or thin utility pages. If this page should rank, remove noindex.',
+        current: robots, recommended: 'index,follow', code: '<meta name="robots" content="index,follow">', codeName: 'robots-meta.html' });
+    }
+    return recos;
+  }
+
   // ---- On-Page ------------------------------------------------------------
   function onpage(d) {
     if (!d) return [];
-    var recos = [], self = selfUrl(d.url);
+    var I = intel();
+    var recos = [];
     var t = d.title || {}, md = d.metaDescription || {}, hc = d.headingCounts || {}, im = d.images || {};
+    var cx = (I && I.urlContext(d.url)) || {};
+    // Search results, cart/account pages and deep paginated pages don't need
+    // snippet polish: they shouldn't be landing pages in search.
+    var lowValue = cx.isSearch || cx.isUtility || cx.isPaginated;
+
     if (!t.length) recos.push({ sev: 'high', title: 'Add a page <title>',
-      detail: 'This page has no title tag — the single strongest on-page ranking signal.',
+      detail: 'This page has no title tag. The title is the main headline of your search result and one of the strongest on-page relevance signals.',
       code: '<title>Primary keyword — Brand</title>', codeName: 'title.html', ai: 'titleWrite' });
-    else if (t.length > 60) recos.push({ sev: 'med', title: 'Shorten the title',
-      detail: 'The title is ' + t.length + ' characters; keep it ~50–60 so Google doesn’t truncate it.', current: t.text, ai: 'titleShorten' });
-    else if (t.length < 15) recos.push({ sev: 'low', title: 'Expand the title',
-      detail: 'The title is only ' + t.length + ' characters — add your primary keyword and brand.', current: t.text, ai: 'titleWrite' });
-    if (!md.length) recos.push({ sev: 'high', title: 'Add a meta description',
-      detail: 'No meta description — write a 70–160 character summary with your key term to lift click-through.',
-      code: '<meta name="description" content="A compelling 150–160 character summary that includes your primary keyword.">', codeName: 'meta-description.html', ai: 'metaDescription' });
-    else if (md.length > 160) recos.push({ sev: 'med', title: 'Trim the meta description',
-      detail: 'It’s ' + md.length + ' characters; keep it ≤160 so it isn’t cut off in search.', current: md.text, ai: 'metaDescription' });
-    else if (md.length < 70) recos.push({ sev: 'low', title: 'Lengthen the meta description',
-      detail: 'It’s only ' + md.length + ' characters; 70–160 gives Google more to show.', current: md.text, ai: 'metaDescription' });
-    if ((hc.h1 || 0) === 0) recos.push({ sev: 'high', title: 'Add exactly one H1',
-      detail: 'No H1 found — every page needs one clear top-level heading.', code: '<h1>Your main page heading</h1>', codeName: 'h1.html', ai: 'h1' });
-    else if ((hc.h1 || 0) > 1) recos.push({ sev: 'med', title: 'Use a single H1',
-      detail: 'Found ' + hc.h1 + ' H1 tags; keep one H1 and demote the rest to H2/H3.' });
-    if (/noindex/i.test(d.robots || '')) recos.push({ sev: 'high', title: 'Remove “noindex” if unintended',
-      detail: 'The meta robots tag contains noindex, so this page won’t be indexed.',
-      current: d.robots, recommended: 'index,follow', code: '<meta name="robots" content="index,follow">', codeName: 'robots-meta.html' });
-    if (!d.canonical) recos.push({ sev: 'med', title: 'Add a self-referencing canonical',
-      detail: 'No canonical tag. Add one pointing to this page’s preferred URL to consolidate ranking signals.',
-      current: '(none)', recommended: self, code: '<link rel="canonical" href="' + self + '">', codeName: 'canonical.html' });
-    else if (!d.canonicalMatchesUrl) recos.push({ sev: 'med', title: 'Canonical points to a different URL',
-      detail: 'This page canonicalises to another URL, so Google may index that one instead. If that’s intentional (a duplicate), leave it; otherwise point it at this page.',
-      current: d.canonical, recommended: self, code: '<link rel="canonical" href="' + self + '">', codeName: 'canonical.html' });
-    if ((im.missingAlt || 0) > 0) recos.push({ sev: 'med', title: 'Add alt text to images',
-      detail: im.missingAlt + ' image(s) have no alt attribute. Describe each meaningful image (use alt="" for purely decorative ones).', ai: 'altText' });
+    else if (!lowValue) {
+      var tw = px('title', t.text), tLimit = 580;
+      if (tw ? tw > tLimit : t.length > 65) recos.push({ sev: 'low', title: 'Title may be cut off in search results',
+        detail: 'The title is ' + t.length + ' characters' + (tw ? ' (about ' + Math.round(tw) + 'px)' : '') + '. Google shows roughly 580px (about 55–60 characters) on desktop and adds “…” after that. Length is not a ranking factor, so this only matters if the important words come late: put the main keyword and offer first.',
+        current: t.text, ai: 'titleShorten' });
+      else if (t.length < 15) recos.push({ sev: 'low', title: 'Expand the title',
+        detail: 'The title is only ' + t.length + ' characters. A more descriptive title (main keyword plus brand) helps searchers and search engines understand the page.', current: t.text, ai: 'titleWrite' });
+    }
+    if (!lowValue) {
+      if (!md.length) recos.push({ sev: 'med', title: 'Add a meta description',
+        detail: 'There is no meta description, so Google will build a snippet from page text. Google often rewrites descriptions anyway, but a clear, specific one usually earns more clicks. It is not a ranking factor.',
+        code: '<meta name="description" content="A specific 120–155 character summary of what this page offers.">', codeName: 'meta-description.html', ai: 'metaDescription' });
+      else {
+        var dw = px('desc', md.text);
+        if (dw ? dw > 920 : md.length > 160) recos.push({ sev: 'low', title: 'Meta description may be cut off',
+          detail: 'It is ' + md.length + ' characters' + (dw ? ' (about ' + Math.round(dw) + 'px)' : '') + '. Google shows roughly 920px (about 155–160 characters) on desktop and less on mobile, so make sure the key message comes first.', current: md.text, ai: 'metaDescription' });
+        else if (md.length < 50) recos.push({ sev: 'low', title: 'Make the meta description more descriptive',
+          detail: 'It is only ' + md.length + ' characters. Google is more likely to replace a very short description with its own snippet.', current: md.text, ai: 'metaDescription' });
+      }
+    }
+    if ((hc.h1 || 0) === 0) recos.push({ sev: 'med', title: 'Add an H1 heading',
+      detail: 'No H1 was found. A clear main heading helps visitors, screen readers and search engines understand what the page is about.', code: '<h1>Your main page heading</h1>', codeName: 'h1.html', ai: 'h1' });
+    else if ((hc.h1 || 0) > 1) recos.push({ sev: 'low', title: 'Consider a single H1',
+      detail: 'Found ' + hc.h1 + ' H1 tags. Google handles multiple H1s fine, so this is not a ranking problem, but one clear main heading is better for accessibility and makes the page structure easier to follow.' });
+
+    var noindex = /noindex/i.test(d.robots || '');
+    var cf = canonFindings(d.url, d.canonical);
+    var conflict = noindex && I && d.canonical && I.canonicalAssess(d.url, d.canonical).status === 'different';
+    if (!conflict) noindexRecos(d.url, d.robots).forEach(function (r) { recos.push(r); });
+    if (conflict) recos.push({ sev: 'med', title: 'Don’t combine noindex with a canonical to another page',
+      detail: 'This page is noindex and also canonicalises to another URL. The two signals conflict: a canonical says “index that page instead”, a noindex says “drop this one”. Use the canonical alone for duplicates, or noindex alone for pages that should stay out of search.' });
+    else if (!(noindex && cf.length && cf[0].title === 'Add a canonical tag')) cf.forEach(function (f) { recos.push(f); });
+    if (cx.isSearch && !noindex) recos.push({ sev: 'low', title: 'Keep internal search results out of the index',
+      detail: 'This looks like an internal search results page. Google advises against letting these get indexed: add noindex, or disallow the search path in robots.txt, so crawl budget goes to real pages.',
+      code: '<meta name="robots" content="noindex,follow">', codeName: 'robots-meta.html' });
+
+    if ((im.missingAlt || 0) > 0 && !cx.isUtility) recos.push({ sev: 'med', title: 'Add alt text to images',
+      detail: im.missingAlt + ' image(s) have no alt attribute. Describe each meaningful image so it can rank in image search and be read by screen readers; use alt="" for decorative images.', ai: 'altText' });
     if (!d.viewport) recos.push({ sev: 'med', title: 'Add a responsive viewport',
-      detail: 'No viewport meta tag — required for a mobile-friendly page.',
+      detail: 'No viewport meta tag. Google indexes the mobile version of pages, so the page needs to render properly on phones.',
       code: '<meta name="viewport" content="width=device-width, initial-scale=1">', codeName: 'viewport.html' });
     if (!d.lang) recos.push({ sev: 'low', title: 'Set the page language',
-      detail: 'The <html> tag has no lang attribute; set it for accessibility and international SEO.', code: '<html lang="en">', codeName: 'lang.html' });
+      detail: 'The <html> tag has no lang attribute. It helps screen readers and browsers; search engines detect language from the content itself.', code: '<html lang="en">', codeName: 'lang.html' });
     var og = d.openGraph || {};
-    if (!og['og:title'] || !og['og:image']) recos.push({ sev: 'low', title: 'Add Open Graph tags',
-      detail: 'Missing og:title/og:image — add them so shared links show a rich preview on social and chat apps.',
+    if (!lowValue && (!og['og:title'] || !og['og:image'])) recos.push({ sev: 'low', title: 'Add Open Graph tags',
+      detail: 'Missing og:title/og:image. They control how links look when shared on social and messaging apps. Not a ranking factor.',
       code: '<meta property="og:title" content="Page title">\n<meta property="og:description" content="Short description">\n<meta property="og:image" content="https://example.com/share-1200x630.jpg">', codeName: 'open-graph.html', ai: 'openGraph' });
     return recos;
   }
@@ -129,68 +171,134 @@
     var recos = [];
     if (h.status && (h.status < 200 || h.status >= 400)) recos.push({ sev: 'high', title: 'Fix the HTTP status',
       detail: 'The page returns HTTP ' + h.status + '. Google only indexes pages that return 200 OK.', current: 'HTTP ' + h.status, recommended: 'HTTP 200' });
-    if (/noindex/i.test(metaRobots)) recos.push({ sev: 'high', title: 'Remove noindex (meta robots)',
-      detail: 'Meta robots contains noindex — the page is being kept out of the index.', current: metaRobots, recommended: 'index,follow',
-      code: '<meta name="robots" content="index,follow">', codeName: 'robots-meta.html' });
-    if (/noindex/i.test(xRobots)) recos.push({ sev: 'high', title: 'Remove noindex (X-Robots-Tag)',
-      detail: 'The X-Robots-Tag response header contains noindex. Update your server / CDN header config.', current: xRobots });
-    if (robotsBlocked) recos.push({ sev: 'high', title: 'Allow Googlebot in robots.txt',
-      detail: 'robots.txt disallows crawling ' + path + ' for Googlebot. Allow it if this page should be indexed.',
+    var I = intel(), cx = (I && I.urlContext(d.url)) || {};
+    var expected = I ? I.noindexExpected(d.url) : '';
+    var assess = I ? I.canonicalAssess(d.url, canonical) : { status: canonical ? (canonMatches ? 'self' : 'different') : 'missing', findings: [] };
+    noindexRecos(d.url, metaRobots).forEach(function (r) { recos.push(r); });
+    if (/noindex/i.test(xRobots) && !/noindex/i.test(metaRobots) && !expected) recos.push({ sev: 'high', title: 'Page is set to noindex (X-Robots-Tag header)',
+      detail: 'The X-Robots-Tag response header contains noindex, so this page will not appear in search. If it should rank, remove the header in your server or CDN configuration.', current: xRobots });
+    if (robotsBlocked && !expected && !cx.isSearch) recos.push({ sev: 'high', title: 'robots.txt blocks Googlebot from this page',
+      detail: 'robots.txt disallows crawling ' + path + ' for Googlebot, so Google can’t read the page (it may still index the bare URL from links). Allow it if this page should rank. To keep a page out of search, use noindex instead of a robots.txt block.',
       code: 'User-agent: Googlebot\nAllow: ' + path, codeName: 'robots-allow.txt' });
-    if (canonical && !canonMatches) recos.push({ sev: 'med', title: 'Canonical points to a different URL',
-      detail: 'This page canonicalises to another URL, so Google may index that one instead. Point it here if that’s unintended.',
-      current: canonical, recommended: self, code: '<link rel="canonical" href="' + self + '">', codeName: 'canonical.html' });
-    else if (!canonical) recos.push({ sev: 'low', title: 'Add a self-referencing canonical',
-      detail: 'No canonical tag was found. Add one pointing to this page’s preferred URL.',
-      current: '(none)', recommended: self, code: '<link rel="canonical" href="' + self + '">', codeName: 'canonical.html' });
+    canonFindings(d.url, canonical).forEach(function (f) { recos.push(f); });
+    targetFindings(canonical, assess, d.canonicalTarget).forEach(function (f) { recos.push(f); });
     if (!sm2) recos.push({ sev: 'med', title: 'Publish an XML sitemap',
       detail: 'No readable sitemap was found. Create one and declare it in robots.txt so Google can discover your URLs.',
       code: 'Sitemap: ' + origin + '/sitemap.xml', codeName: 'robots-sitemap.txt' });
     else if (!sm2.isIndex) {
-      var present = sm2.locs.some(function (l) { return norm(l) === norm(d.url); });
-      if (!present) recos.push({ sev: 'med', title: 'Add this URL to your sitemap',
-        detail: 'This page wasn’t found in the sitemap. Add it so Google discovers and recrawls it faster.', current: 'not in sitemap', recommended: self });
+      // Only indexable pages that are their own canonical belong in a sitemap.
+      var indexable = !/noindex/i.test(metaRobots + ' ' + xRobots) && !robotsBlocked && !cx.isSearch && !cx.isUtility &&
+        (assess.status === 'self' || assess.status === 'consolidated' || assess.status === 'missing');
+      var target = canonical && assess.status !== 'missing' ? canonical : (I ? I.preferredUrl(d.url) : self);
+      var present = sm2.locs.some(function (l) { return I ? I.sameUrl(l, target) : norm(l) === norm(target); });
+      if (indexable && !present) recos.push({ sev: 'low', title: 'Add this URL to your sitemap',
+        detail: 'The page’s canonical URL was not found in the sitemap at ' + (d.sitemap && d.sitemap.finalUrl || 'the declared location') + '. Listing every indexable page helps Google discover and recrawl it.',
+        current: 'not in sitemap', recommended: target });
     }
     if (h.redirected && h.finalUrl && norm(h.finalUrl) !== norm(d.url)) recos.push({ sev: 'low', title: 'Link to the final URL directly',
       detail: 'This URL redirects. Update internal links to point at the final URL to save a redirect hop.', current: d.url, recommended: h.finalUrl });
     return recos;
   }
 
+  // Follow the canonical: it must point at a live, indexable page that is its
+  // own canonical, or search engines may ignore it.
+  function targetFindings(canonical, assess, t) {
+    if (!canonical || !t || assess.status === 'self' || assess.status === 'missing') return [];
+    var out = [], body = String(t.body || '');
+    if (!t.status || t.status >= 400) {
+      out.push({ sev: 'high', title: 'Canonical points to a URL that ' + (t.status ? 'returns HTTP ' + t.status : 'does not respond'),
+        detail: 'Search engines ignore a canonical whose target is broken, so this page may be indexed under an unintended URL, or not at all. Point the canonical at a live page.',
+        current: canonical });
+      return out;
+    }
+    var I = intel();
+    if (t.redirected && t.finalUrl && !(I ? I.sameUrl(t.finalUrl, canonical) : norm(t.finalUrl) === norm(canonical))) out.push({ sev: 'med', title: 'Canonical points to a URL that redirects',
+      detail: 'The canonical target redirects to another URL. Canonicals should name the final URL directly, otherwise search engines have to resolve a chain and may pick a different version.',
+      current: canonical, recommended: t.finalUrl, code: '<link rel="canonical" href="' + t.finalUrl + '">', codeName: 'canonical.html' });
+    var xr = (t.headers && t.headers['x-robots-tag']) || '';
+    var metaNoindex = /<meta[^>]+name=["']?(robots|googlebot)["']?[^>]*content=["'][^"']*noindex/i.test(body) ||
+      /<meta[^>]+content=["'][^"']*noindex[^"']*["'][^>]*name=["']?(robots|googlebot)/i.test(body);
+    if (/noindex/i.test(xr) || metaNoindex) out.push({ sev: 'high', title: 'Canonical points to a page that is set to noindex',
+      detail: 'The canonical target asks not to be indexed. Search engines then have no indexable version of this content. Remove noindex from the target, or point the canonical somewhere indexable.',
+      current: canonical });
+    var m = body.match(/<link[^>]+rel=["']?canonical["']?[^>]*href=["']([^"']+)["']/i) || body.match(/<link[^>]+href=["']([^"']+)["'][^>]*rel=["']?canonical/i);
+    if (m && I) {
+      var second = m[1];
+      try { second = new URL(second, t.finalUrl || canonical).href; } catch (e) {}
+      var st = I.canonicalAssess(t.finalUrl || canonical, second).status;
+      if (st === 'different' || st === 'issue') out.push({ sev: 'med', title: 'Canonical chain: the target canonicalises elsewhere',
+        detail: 'The page this canonical points to names a different canonical (' + second + '). Search engines may not follow chains, so point straight at the final preferred URL.',
+        current: canonical, recommended: second, code: '<link rel="canonical" href="' + second + '">', codeName: 'canonical.html' });
+    }
+    return out;
+  }
+
   // ---- AI / GEO -----------------------------------------------------------
+  // Which content signals matter depends on the kind of page: an author byline
+  // or cited sources make sense on an article, not on a category or cart page.
+  var AI_SIGNALS = [
+    { rx: /heading structure/i, key: 'headings', task: '', title: 'Break the content into clear sections' },
+    { rx: /question-style headings/i, key: 'questions', task: 'questionHeadings', title: 'Phrase some headings as the questions people ask' },
+    { rx: /lists or tables/i, key: 'lists', task: '', title: 'Add a list or comparison table', productTitle: 'Add a specification table' },
+    { rx: /tl;?dr|key takeaways|summary/i, key: 'summary', task: 'tldr', title: 'Add a short summary near the top' },
+    { rx: /faq or howto schema/i, key: 'faqschema', task: '', title: '' },
+    { rx: /author byline/i, key: 'author', task: '', title: 'Show who wrote it (author byline)' },
+    { rx: /published\/updated date/i, key: 'date', task: '', title: 'Show a published or updated date' },
+    { rx: /cites external sources/i, key: 'sources', task: '', title: 'Cite authoritative sources' },
+    { rx: /stats \/ numbers/i, key: 'stats', task: '', title: 'Include specific figures and data' },
+    { rx: /scannable paragraphs/i, key: 'paragraphs', task: 'simplify', title: 'Shorten long paragraphs' }
+  ];
+  // sev per page type; missing key = not relevant for that page type.
+  var AI_RELEVANCE = {
+    article: { headings: 'med', questions: 'low', lists: 'low', summary: 'med', author: 'med', date: 'med', sources: 'low', stats: 'low', paragraphs: 'low' },
+    other: { headings: 'low', questions: 'low', lists: 'low', summary: 'low', paragraphs: 'low' },
+    product: { lists: 'low', questions: 'low' },
+    category: {}, home: {}, search: {}, utility: {}
+  };
+  var AI_CONTEXT = {
+    article: '', other: '',
+    product: 'On product pages, a specification table and answers to common buyer questions are what AI assistants quote.'
+  };
+  // Crawlers that fetch pages to answer and cite in AI search, versus crawlers
+  // that only collect training data. Blocking the second group is a legitimate
+  // business choice and doesn't remove a site from AI answers.
+  var AI_SEARCH_BOTS = [['OAI-SearchBot', 'ChatGPT search'], ['ChatGPT-User', 'ChatGPT browsing'], ['PerplexityBot', 'Perplexity'],
+    ['Claude-SearchBot', 'Claude search'], ['Claude-User', 'Claude browsing']];
+  var AI_TRAINING_BOTS = [['GPTBot', 'OpenAI training'], ['ClaudeBot', 'Anthropic training'], ['Google-Extended', 'Gemini training'],
+    ['CCBot', 'Common Crawl'], ['Applebot-Extended', 'Apple AI training']];
+
   function ai(d) {
     if (!d) return [];
     var recos = [], c = d.content || {}, path = d.path || pathOf(d.url);
-    var SIGNAL_AI = [
-      [/tl;?dr|key takeaways|summary/i, 'tldr'],
-      [/question-style headings/i, 'questionHeadings'],
-      [/faq or howto schema/i, 'faqSchema'],
-      [/scannable paragraphs/i, 'simplify']
-    ];
+    var I = intel();
+    var type = d.pageType || (I ? I.pageType({ url: d.url, schemaTypes: d.schemaTypes || [] }) : 'other');
+    var rel = AI_RELEVANCE[type] || AI_RELEVANCE.other;
     (c.extractability && c.extractability.signals || []).forEach(function (s) {
       if (s.ok) return;
-      var task = '';
-      SIGNAL_AI.forEach(function (m) { if (!task && m[0].test(s.label || '')) task = m[1]; });
-      var r = { sev: 'med', title: s.label, detail: s.hint || 'Improve this to be more extractable by AI answer engines.' };
-      if (task) r.ai = task;
+      var sig = null;
+      AI_SIGNALS.forEach(function (m) { if (!sig && m.rx.test(s.label || '')) sig = m; });
+      if (!sig || !rel[sig.key]) return;
+      var r = { sev: rel[sig.key], title: (type === 'product' && sig.productTitle) || sig.title || s.label,
+        detail: (s.hint || 'Improve this so AI answer engines can extract and quote the page.') + (AI_CONTEXT[type] ? ' ' + AI_CONTEXT[type] : '') };
+      if (sig.task) r.ai = sig.task;
       recos.push(r);
     });
-    if (d.robots && d.robots.body) {
+    if (d.robots && d.robots.body && d.robots.status >= 200 && d.robots.status < 400) {
       var parsed = parseRobots(d.robots.body);
-      var important = [['GPTBot', 'ChatGPT'], ['OAI-SearchBot', 'ChatGPT Search'], ['ClaudeBot', 'Claude'], ['PerplexityBot', 'Perplexity'], ['Google-Extended', 'Gemini']];
-      var blocked = important.filter(function (b) { return !robotsAllows(parsed.groups, b[0], path); });
-      if (blocked.length) {
-        var snip = blocked.map(function (b) { return 'User-agent: ' + b[0] + '\nAllow: /'; }).join('\n\n');
-        recos.push({ sev: 'med', title: 'Allow key AI crawlers',
-          detail: 'Blocked in robots.txt: ' + blocked.map(function (b) { return b[0] + ' (' + b[1] + ')'; }).join(', ') + '. Allow them so your content is eligible for citation in AI answers.',
-          code: snip, codeName: 'robots-ai-allow.txt' });
+      if (robotsAllows(parsed.groups, 'googlebot', path)) {
+        var bSearch = AI_SEARCH_BOTS.filter(function (b) { return !robotsAllows(parsed.groups, b[0], path); });
+        var bTrain = AI_TRAINING_BOTS.filter(function (b) { return !robotsAllows(parsed.groups, b[0], path); });
+        var names = function (l) { return l.map(function (b) { return b[0] + ' (' + b[1] + ')'; }).join(', '); };
+        if (bSearch.length) recos.push({ sev: 'med', title: 'AI search crawlers are blocked in robots.txt',
+          detail: 'Blocked: ' + names(bSearch) + '. These crawlers fetch pages to answer questions and cite sources in AI search, so blocking them keeps this page out of those answers. Allow them if you want to be cited.',
+          code: bSearch.map(function (b) { return 'User-agent: ' + b[0] + '\nAllow: /'; }).join('\n\n'), codeName: 'robots-ai-search-allow.txt' });
+        if (bTrain.length) recos.push({ sev: 'low', title: 'AI training crawlers are blocked in robots.txt',
+          detail: 'Blocked: ' + names(bTrain) + '. These only collect training data. Blocking them is a reasonable business choice and does not stop AI search tools from citing you. Google-Extended does not affect Google Search or AI Overviews. No action needed unless you want your content used for training.' });
       }
     }
     var r = c.readability;
-    if (r && r.grade > 12) recos.push({ sev: 'low', title: 'Simplify the writing',
-      detail: 'Reading grade level is ' + r.grade + '; aim for ≤12 so AI answers can extract clean, quotable sentences.', ai: 'simplify' });
-    var hasLlms = d.llms && d.llms.status >= 200 && d.llms.status < 400;
-    if (!hasLlms) recos.push({ sev: 'low', title: 'Consider adding an llms.txt',
-      detail: 'An llms.txt at your site root lets you point AI crawlers to your key content. Optional, but an easy win.' });
+    if (r && r.grade > 12 && (type === 'article' || type === 'other')) recos.push({ sev: 'low', title: 'Simplify the writing',
+      detail: 'Reading grade level is ' + r.grade + '. Shorter sentences and plain words make passages easier for readers and AI tools to quote.', ai: 'simplify' });
     return recos;
   }
 
@@ -245,9 +353,12 @@
       var bits = [];
       if (r.requiredFixes) bits.push(r.requiredFixes + ' required');
       if (r.recommendedFixes) bits.push(r.recommendedFixes + ' recommended');
-      out.push({ sev: r.severity === 'required' ? 'high' : 'low',
+      // FAQ / HowTo no longer produce rich results for most sites.
+      var limited = r.type === 'FAQPage' || r.type === 'HowTo';
+      out.push({ sev: r.severity === 'required' && !limited ? 'high' : 'low',
         title: 'Improve ' + r.label + ' schema' + (r.name ? ' — ' + r.name : ''),
-        detail: bits.join(' + ') + ' field(s) added. Copy the corrected JSON-LD below and replace any placeholders.',
+        detail: bits.join(' + ') + ' field(s) added. Copy the corrected JSON-LD below and replace any placeholders.' +
+          (limited ? (r.type === 'HowTo' ? ' Google no longer shows How-to rich results, so this is low priority.' : ' Google shows FAQ rich results only for well-known government and health sites, so this is low priority for most sites.') : ''),
         code: '<script type="application/ld+json">\n' + r.fixedJson + '\n<\/script>',
         codeLabel: 'Show corrected JSON-LD', codeName: ('schema-fixed-' + (r.type || 'block')).replace(/[^\w.\-]+/g, '_') + '.html' });
     });
@@ -330,7 +441,7 @@
     if (a.missing.canonical) recos.push({ sev: 'high', title: 'Canonical is injected by JavaScript',
       detail: 'The canonical link only exists after JS runs. Google may not honour a JS-injected canonical reliably — emit it in the server HTML.',
       current: '(none in raw HTML)', recommended: d.rendered.canonical });
-    else if (a.changed.canonical) recos.push({ sev: 'high', title: 'Canonical is rewritten by JavaScript',
+    else if (a.changed.canonical && !(intel() && intel().sameUrl(d.raw.canonical, d.rendered.canonical))) recos.push({ sev: 'high', title: 'Canonical is rewritten by JavaScript',
       detail: 'The server and the rendered page disagree on the canonical URL. Make them match.',
       current: d.raw.canonical, recommended: d.rendered.canonical });
 
@@ -472,7 +583,8 @@
       if (tdiff.length) recos.push({ sev: 'med', title: 'Crawler view: different title served to ' + names(tdiff),
         detail: 'Crawlers and visitors get different <title> tags. Keep them identical so search results match the page.',
         current: tdiff[0].m.title, recommended: base.m.title });
-      var cdiff = ok.filter(function (r) { return r.m && r.m.canonical && base.m.canonical && r.m.canonical !== base.m.canonical; });
+      var cdiff = ok.filter(function (r) { return r.m && r.m.canonical && base.m.canonical && r.m.canonical !== base.m.canonical &&
+        !(intel() && intel().sameUrl(r.m.canonical, base.m.canonical)); });
       if (cdiff.length) recos.push({ sev: 'high', title: 'Crawler view: different canonical served to ' + names(cdiff),
         detail: 'The canonical URL changes depending on who asks. Crawlers will consolidate signals to the URL they are given.',
         current: cdiff[0].m.canonical, recommended: base.m.canonical });

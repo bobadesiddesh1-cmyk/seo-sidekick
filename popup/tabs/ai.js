@@ -59,7 +59,8 @@
     var results = await Promise.all([
       ctx.send({ type: 'analyze-content' }),
       ctx.send({ type: 'fetch-resource', url: origin + '/robots.txt' }),
-      ctx.send({ type: 'fetch-resource', url: origin + '/llms.txt', method: 'HEAD' })
+      ctx.send({ type: 'fetch-resource', url: origin + '/llms.txt', method: 'HEAD' }),
+      ctx.send({ type: 'analyze-schema' })
     ]);
 
     state.running = false;
@@ -73,7 +74,9 @@
       return;
     }
     setStatus(ctx, '', false);
-    state.data = { content: content, robots: robots, llms: llms, url: url, path: pathOf(url) };
+    var schemaData = results[3] && results[3].ok ? results[3].data : null;
+    state.data = { content: content, robots: robots, llms: llms, url: url, path: pathOf(url),
+      schemaTypes: (schemaData && schemaData.allTypes) || [] };
     render(ctx, state.data);
   }
 
@@ -149,7 +152,7 @@
     if (window.SEO_RECO && window.SEO_RECO_RULES) {
       wrap.appendChild(window.SEO_RECO.section(ctx, 'Recommendations',
         'How to make this page more visible and quotable in AI answers.',
-        window.SEO_RECO_RULES.ai({ content: d.content, robots: d.robots, llms: d.llms, url: d.url, path: d.path }),
+        window.SEO_RECO_RULES.ai({ content: d.content, robots: d.robots, llms: d.llms, url: d.url, path: d.path, schemaTypes: d.schemaTypes }),
         { empty: '✓ This page is already well set up for AI search.' }));
     }
 

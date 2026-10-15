@@ -151,23 +151,48 @@
     var xr = (r.headers && r.headers['x-robots-tag']) || '';
     p.noindex = /noindex/i.test(m.robots || '') || /noindex/i.test(xr);
 
-    if (p.noindex) add('high', fromSitemap ? 'Noindex page is listed in the sitemap' : 'Page is set to noindex',
-      fromSitemap ? 'Either remove the noindex or remove the URL from the sitemap — the two signals contradict each other.' : 'Search engines will drop this page from their index.');
+    var I = window.SEO_INTEL;
+    var cx = (I && I.urlContext(r.finalUrl || url)) || {};
+    var ptype = I ? I.pageType({ url: r.finalUrl || url, schemaTypes: p.schema }) : 'other';
+    var lowValue = cx.isSearch || cx.isUtility || cx.isPaginated;
+    var ca = I ? I.canonicalAssess(r.finalUrl || url, p.canonical) : null;
+    p.canonStatus = ca ? ca.status : '';
+    p.paginated = !!cx.isPaginated;
+
+    if (p.noindex) {
+      if (fromSitemap) add('high', 'Noindex page is listed in the sitemap',
+        'Sitemaps should only list pages you want indexed. Either remove the noindex or remove the URL from the sitemap; the two signals contradict each other.');
+      else if (!(I && I.noindexExpected(r.finalUrl || url))) add('high', 'Page is set to noindex', 'Search engines will keep this page out of results. Fine for utility pages; remove it if the page should rank.');
+    }
+    if (fromSitemap && ca && ca.status === 'different') add('med', 'Sitemap lists a URL that canonicalises elsewhere',
+      'This URL’s canonical points to ' + p.canonical + '. Sitemaps should list only canonical URLs, so list that one instead.');
+    if (fromSitemap && cx.hasTracking) add('med', 'Sitemap URL contains tracking parameters',
+      'List the clean URL' + (I ? ' (' + I.preferredUrl(url) + ')' : '') + ' so search engines don’t crawl duplicate versions.');
     if (!p.title) add('high', 'Missing title');
-    else if (p.title.length > 60) add('low', 'Title is too long', p.title.length + ' characters — Google shows about 60.');
-    else if (p.title.length < 30) add('low', 'Title is short', p.title.length + ' characters — room for a more descriptive title.');
-    if (!p.description) add('med', 'Missing meta description');
-    else if (p.description.length > 160) add('low', 'Meta description is too long', p.description.length + ' characters — Google shows about 155–160.');
-    else if (p.description.length < 70) add('low', 'Meta description is short', p.description.length + ' characters.');
+    else if (!lowValue && p.title.length > 65) add('low', 'Title may be cut off in search results', p.title.length + ' characters. Google shows about 55–60 on desktop; length is not a ranking factor, so just keep the important words first.');
+    else if (p.title.length < 15) add('low', 'Title is very short', p.title.length + ' characters. Room for a more descriptive title.');
+    if (!lowValue) {
+      if (!p.description) add('med', 'Missing meta description', 'Google will build its own snippet. Not a ranking factor, but a specific description usually earns more clicks.');
+      else if (p.description.length > 160) add('low', 'Meta description may be cut off', p.description.length + ' characters. Google shows about 155–160 on desktop.');
+      else if (p.description.length < 50) add('low', 'Meta description is very short', p.description.length + ' characters.');
+    }
     if (!p.h1) add('med', 'Missing H1');
-    else if (p.h1 > 1) add('low', 'Multiple H1s', p.h1 + ' H1 headings.');
-    if (!p.canonical) add('low', 'Missing canonical');
-    else if (normUrl(p.canonical) !== normUrl(r.finalUrl || url)) add('med', 'Canonical points to another URL', p.canonical);
+    else if (p.h1 > 1) add('low', 'Multiple H1s', p.h1 + ' H1 headings. Fine for Google; one main heading is clearer for accessibility.');
+    if (ca) {
+      // Judged like the panel does: a canonical that drops tracking, sorting or
+      // page-1 parameters is correct; staging, homepage or page-N→1 are not.
+      ca.findings.forEach(function (f) {
+        if (f.sev === 'low' && p.canonical) return;
+        if (fromSitemap && ca.status === 'different') return;   // reported above, in sitemap terms
+        add(f.sev, f.title.replace(/\b\d+\b/g, 'N'), (f.current ? 'Now: ' + f.current + '. ' : '') + (f.recommended ? 'Use: ' + f.recommended + '. ' : '') + f.detail);
+      });
+    } else if (!p.canonical) add('low', 'Missing canonical');
 
     var fw = m.frameworks || [];
     if (p.words < 50 && fw.length) add('high', 'Almost no content in the server HTML', 'Only ' + p.words + ' words before JavaScript runs (' + fw.join(', ') + ') — likely client-rendered. AI crawlers that don’t run JavaScript see an empty page.');
-    else if (p.words < 200 && !p.noindex) add('low', 'Thin content', p.words + ' words in the server HTML.');
-    if (!p.schema.length) add('low', 'No structured data');
+    else if (p.words < 200 && !p.noindex && (ptype === 'article' || ptype === 'other')) add('low', 'Thin content', p.words + ' words in the server HTML. Check the page answers its topic fully.');
+    var SCHEMA_FOR = { product: 'Product', article: 'Article', home: 'Organization or WebSite' };
+    if (!p.schema.length && SCHEMA_FOR[ptype]) add('low', 'No structured data', 'This looks like a ' + ptype + ' page; ' + SCHEMA_FOR[ptype] + ' markup would describe it to search engines.');
     var imgs = m.images || {};
     if (imgs.total && imgs.withAlt < imgs.total) add('low', 'Images missing alt text', (imgs.total - imgs.withAlt) + ' of ' + imgs.total + ' images.');
     try {
@@ -191,7 +216,9 @@
       var map = {};
       pages.forEach(function (p) {
         // A redirecting URL is the same page as its target, not a duplicate of it.
-        if (p.noindex || (p.redirected && normUrl(p.finalUrl) !== normUrl(p.url))) return;
+        // Duplicates by design aren't problems: redirects, noindex, pages that
+        // canonicalise elsewhere and later pages of a paginated series.
+        if (p.noindex || p.paginated || p.canonStatus === 'different' || (p.redirected && normUrl(p.finalUrl) !== normUrl(p.url))) return;
         var v = (p[field] || '').trim().toLowerCase();
         if (v) (map[v] = map[v] || []).push(p);
       });
