@@ -21,6 +21,9 @@
   var INDEX = 'seo_hist_index';
   var MAX_SNAPS = 12;     // per URL
   var MAX_URLS = 300;     // LRU across URLs
+  // Bump when recommendation wording/logic changes, so a check made with the
+  // old rules isn't diffed against the new ones (titles would all "change").
+  var RULES = 2;
 
   function store() { return window.SEO_STORE; }
 
@@ -44,7 +47,7 @@
     });
     var version = '';
     try { version = chrome.runtime.getManifest().version; } catch (e) {}
-    return { ts: Date.now(), version: version, sources: (meta.sources || []).slice(), counts: counts, issues: issues };
+    return { ts: Date.now(), version: version, rules: RULES, sources: (meta.sources || []).slice(), counts: counts, issues: issues };
   }
 
   async function list(url) {
@@ -79,6 +82,7 @@
 
   function diff(prev, curr) {
     if (!prev || !curr) return null;
+    if ((prev.rules || 1) !== (curr.rules || 1)) return { baseline: true, prevTs: prev.ts };
     var shared = (curr.sources || []).filter(function (x) { return (prev.sources || []).indexOf(x) !== -1; });
     function comparable(i) {
       var src = sourcesOf(i);

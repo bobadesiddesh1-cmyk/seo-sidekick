@@ -221,11 +221,12 @@
           html: (e.eligible ? checkSvg() : xSvg()) }),
         el('div', { class: 'elig-titles' }, [
           el('div', { class: 'elig-t', text: e.label + (e.name ? ' — ' + e.name : '') }),
-          el('div', { class: 'elig-s', text: e.eligible ? 'Eligible for rich results' : 'Blocked — ' + e.missingRequired.length + ' required field' + (e.missingRequired.length === 1 ? '' : 's') + ' missing' })
+          el('div', { class: 'elig-s', text: e.eligible ? (e.note ? 'Valid markup' : 'Eligible for rich results') : 'Blocked — ' + e.missingRequired.length + ' required field' + (e.missingRequired.length === 1 ? '' : 's') + ' missing' })
         ]),
         el('span', { class: 'elig-type', text: e.type })
       ]);
       card.appendChild(head);
+      if (e.note) card.appendChild(el('div', { class: 'elig-note', text: e.note }));
 
       // Required props.
       var reqWrap = el('div', { class: 'prop-row' });

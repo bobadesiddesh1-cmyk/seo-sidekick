@@ -69,6 +69,14 @@
     if (robots && robots.body) { var m = robots.body.match(/^\s*sitemap:\s*(\S+)/im); if (m) sitemapUrl = m[1].trim(); }
     var sitemap = ok(await ctx.send({ type: 'fetch-resource', url: sitemapUrl }));
     var pageHttp = ok(res[3]);
+    var onpageData = ok(res[0]);
+    var canonicalTarget = null;
+    if (onpageData && onpageData.canonical && window.SEO_INTEL) {
+      var cst = window.SEO_INTEL.canonicalAssess(url, onpageData.canonical).status;
+      if (cst !== 'self' && cst !== 'missing') {
+        try { canonicalTarget = ok(await ctx.send({ type: 'fetch-resource', url: new URL(onpageData.canonical, url).href, method: 'GET' })); } catch (e) {}
+      }
+    }
     var clicks = ok(await ctx.send({ type: 'scan-clicks', rawHtml: pageHttp && pageHttp.body ? pageHttp.body : '' }));
 
     state.running = false;
@@ -77,7 +85,8 @@
       url: url, path: path,
       onpage: ok(res[0]), schema: ok(res[1]), content: ok(res[2]),
       headers: ok(res[3]), robots: robots, llms: ok(res[5]), hreflang: ok(res[6]), sitemap: sitemap,
-      rendered: ok(res[7]), rawMetrics: rawMetricsFrom(ok(res[3]), url), clicks: clicks
+      rendered: ok(res[7]), rawMetrics: rawMetricsFrom(ok(res[3]), url), clicks: clicks,
+      canonicalTarget: canonicalTarget
     };
     state.histSaved = false;
     await updateHistory(false);
@@ -119,8 +128,11 @@
     }
     if (!R) return all;
     add(R.onpage(d.onpage), 'On-Page');
-    add(R.tech({ onpage: d.onpage, headers: d.headers, robots: d.robots, sitemap: d.sitemap, url: d.url, path: d.path }), 'Tech');
-    add(R.ai({ content: d.content, robots: d.robots, llms: d.llms, url: d.url, path: d.path }), 'AI/GEO');
+    add(R.tech({ onpage: d.onpage, headers: d.headers, robots: d.robots, sitemap: d.sitemap, url: d.url, path: d.path,
+      canonicalTarget: d.canonicalTarget }), 'Tech');
+    var schemaTypes = (d.schema && d.schema.allTypes) || [];
+    add(R.ai({ content: d.content, robots: d.robots, llms: d.llms, url: d.url, path: d.path, schemaTypes: schemaTypes,
+      pageType: state.pageType && state.pageType.type && /^(product|article|category|home)$/.test(state.pageType.type) ? state.pageType.type : null }), 'AI/GEO');
     add(R.hreflang(d.hreflang), 'Hreflang');
     add(R.schema(d.schema), 'Schema');
     add(R.render({ raw: d.rawMetrics, rendered: d.rendered, url: d.url }), 'Render');
@@ -291,6 +303,8 @@
       arr = await H.record(state.data.url, snap, replace);
       state.histSaved = true;
       state.hist = prev ? H.diff(prev, snap) : null;
+      state.histBaseline = !!(state.hist && state.hist.baseline);
+      if (state.histBaseline) state.hist = null;
       state.histCount = arr.length;
       state.trend = arr.slice(-6).map(function (x) { return x.counts.total; });
       state.newKeys = {};
@@ -313,7 +327,10 @@
     var el = ctx.el, h = state.hist;
     if (!window.SEO_HISTORY || !state.histSaved) return;
     if (!h) {
-      wrap.appendChild(el('div', { class: 'hist hist-first' }, [
+      wrap.appendChild(el('div', { class: 'hist hist-first' }, state.histBaseline ? [
+        el('b', { text: 'New baseline saved.' }),
+        el('span', { text: ' SEO Sidekick’s recommendations were updated since your last check, so comparisons start again from this audit.' })
+      ] : [
         el('b', { text: 'First check of this URL saved.' }),
         el('span', { text: ' Fix a few things, then re-run — you’ll see exactly what was fixed and what’s new.' })
       ]));

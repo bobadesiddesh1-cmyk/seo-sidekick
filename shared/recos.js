@@ -71,7 +71,7 @@
         el('code', { class: 'reco-val', text: String(r.current) })
       ]));
       if (r.recommended != null) d.appendChild(el('div', { class: 'reco-line' }, [
-        el('span', { class: 'reco-lab rec', text: 'Use' }),
+        el('span', { class: 'reco-lab rec', text: r.recommendedLabel || 'Use' }),
         el('code', { class: 'reco-val ok', text: String(r.recommended) })
       ]));
       c.appendChild(d);
